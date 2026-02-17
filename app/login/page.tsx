@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Loader2, ArrowRight, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,14 +11,19 @@ import Link from "next/link";
 
 export default function LoginPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") || "/";
-
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [companyId, setCompanyId] = React.useState("");
   const [error, setError] = React.useState("");
   const [loading, setLoading] = React.useState(false);
+
+  // Use useEffect to access searchParams on client only
+  const [callbackUrl, setCallbackUrl] = React.useState("/");
+  
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setCallbackUrl(params.get("callbackUrl") || "/");
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
