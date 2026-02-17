@@ -230,7 +230,7 @@ export default function ClientsPage() {
   // Loading state
   if (loading) {
     return (
-      <MainLayout showTabBar={true} showFab={true} fabProps={{ onClick: () => handleOpenDialog(), label: "Add Client" }}>
+      <MainLayout showTabBar={true} showFab={false} fabProps={{ onClick: () => handleOpenDialog(), label: "Add Client" }}>
         <div className="flex items-center justify-center py-20">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
@@ -239,7 +239,7 @@ export default function ClientsPage() {
   }
 
   return (
-    <MainLayout showTabBar={true} showFab={true} fabProps={{ onClick: () => handleOpenDialog(), label: "Add Client" }}>
+    <MainLayout showTabBar={true} showFab={false} fabProps={{ onClick: () => handleOpenDialog(), label: "Add Client" }}>
       <div className="space-y-4 md:space-y-6">
         {/* Page Header - Mobile */}
         <div className="md:hidden">

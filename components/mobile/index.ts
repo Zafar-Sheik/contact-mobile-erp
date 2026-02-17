@@ -45,3 +45,11 @@ export { SearchBar, type SearchBarProps, SearchBarCompact, type SearchBarCompact
 
 // Empty State
 export { EmptyState, type EmptyStateProps } from "./empty-state"
+
+// Bottom Sheet
+export { BottomSheet, type BottomSheetProps } from "./bottom-sheet"
+export { FilterSheet, type FilterSheetProps } from "./bottom-sheet"
+export { ActionSheet, type ActionSheetProps } from "./bottom-sheet"
+
+// Section
+export { Section, type SectionProps, SectionHeader, type SectionHeaderProps, SectionCard, type SectionCardProps } from "./section"

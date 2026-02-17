@@ -259,7 +259,7 @@ export default function VehiclesPage() {
   };
 
   return (
-    <MainLayout showTabBar={true} showFab={true}>
+    <MainLayout showTabBar={true} showFab={false}>
       {/* Page Header - Mobile */}
       <div className="md:hidden">
         <PageHeader

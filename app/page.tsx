@@ -265,15 +265,8 @@ export default function DashboardPage() {
     <MainLayout
       title="Dashboard"
       showTabBar={true}
-      showFab={true}
+      showFab={false}
       tabs={dashboardTabs}
-      mobileShellProps={{
-        fabProps: {
-          items: fabMenuItems,
-          visible: true,
-          label: "Quick actions",
-        },
-      }}
     >
       <div className="space-y-4 md:space-y-6 pb-20 md:pb-6">
         {/* Page Header - Mobile */}

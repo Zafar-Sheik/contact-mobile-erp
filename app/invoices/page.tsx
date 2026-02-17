@@ -172,7 +172,7 @@ export default function InvoicesPage() {
 
   if (loading) {
     return (
-      <MainLayout showTabBar={true} showFab={true} fabProps={{ href: "/invoices/new" }}>
+      <MainLayout showTabBar={true} showFab={false} fabProps={{ href: "/invoices/new" }}>
         <div className="flex items-center justify-center py-20">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
@@ -181,7 +181,7 @@ export default function InvoicesPage() {
   }
 
   return (
-    <MainLayout showTabBar={true} showFab={true} fabProps={{ href: "/invoices/new", label: "New Invoice" }}>
+    <MainLayout showTabBar={true} showFab={false} fabProps={{ href: "/invoices/new", label: "New Invoice" }}>
       <div className="space-y-4 md:space-y-6">
         {/* Page Header - Mobile */}
         <div className="md:hidden">

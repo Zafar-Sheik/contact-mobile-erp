@@ -533,7 +533,7 @@ export default function StockItemsPage() {
 
   if (loading) {
     return (
-      <MainLayout title="Stock Items" showTabBar={true} showFab={true}>
+      <MainLayout title="Stock Items" showTabBar={true} showFab={false}>
         <div className="p-4 space-y-4">
           <div className="h-16 bg-muted rounded-lg animate-pulse" />
           <div className="space-y-3">
@@ -550,7 +550,7 @@ export default function StockItemsPage() {
     <MainLayout 
       title="Stock Items" 
       showTabBar={true} 
-      showFab={true}
+      showFab={false}
       mobileShellProps={{
         fabProps: {
           onClick: () => handleOpenDialog(),

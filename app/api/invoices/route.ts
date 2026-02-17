@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { dbConnect } from "@/lib/db";
 import { SalesInvoice } from "@/lib/models/SalesInvoice";
+import { SalesQuote } from "@/lib/models/SalesQuote";
 import { Client } from "@/lib/models/Client";
 import { Counter } from "@/lib/models/Counter";
 import { getSessionClaims } from "@/lib/auth/session";

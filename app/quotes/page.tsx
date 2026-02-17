@@ -162,7 +162,7 @@ export default function QuotesPage() {
 
   if (loading) {
     return (
-      <MainLayout showTabBar={true} showFab={true} fabProps={{ href: "/quotes/new" }}>
+      <MainLayout showTabBar={true} showFab={false} fabProps={{ href: "/quotes/new" }}>
         <div className="flex items-center justify-center py-20">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
@@ -171,7 +171,7 @@ export default function QuotesPage() {
   }
 
   return (
-    <MainLayout showTabBar={true} showFab={true} fabProps={{ href: "/quotes/new", label: "New Quote" }}>
+    <MainLayout showTabBar={true} showFab={false} fabProps={{ href: "/quotes/new", label: "New Quote" }}>
       <div className="space-y-4 md:space-y-6">
         {/* Page Header - Mobile */}
         <div className="md:hidden">

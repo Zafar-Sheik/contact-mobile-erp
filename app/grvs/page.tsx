@@ -521,7 +521,7 @@ export default function GRVsPage() {
   };
 
   return (
-    <MainLayout showTabBar={true} showFab={true}>
+    <MainLayout showTabBar={true} showFab={false}>
       <div className="space-y-4 md:space-y-6">
         {/* Page Header - Mobile */}
         <div className="md:hidden">

@@ -267,7 +267,7 @@ export default function FuelLogsPage() {
   };
 
   return (
-    <MainLayout showTabBar={true} showFab={true}>
+    <MainLayout showTabBar={true} showFab={false}>
       {/* Page Header - Mobile */}
       <div className="md:hidden">
         <PageHeader
