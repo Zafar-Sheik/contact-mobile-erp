@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -190,6 +191,14 @@ const MatchingPanel = ({ result }: { result: MatchingResult }) => {
 };
 
 export default function NewSupplierBillPage() {
+  return (
+    <Suspense fallback={<div className="p-4">Loading...</div>}>
+      <NewSupplierBillPageContent />
+    </Suspense>
+  );
+}
+
+function NewSupplierBillPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { toast } = useToast();

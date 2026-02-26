@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -57,6 +58,14 @@ const formatCurrency = (cents: number) => {
 };
 
 export default function NewSupplierPaymentPage() {
+  return (
+    <Suspense fallback={<div className="p-4">Loading...</div>}>
+      <NewSupplierPaymentPageContent />
+    </Suspense>
+  );
+}
+
+function NewSupplierPaymentPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { toast } = useToast();

@@ -32,7 +32,7 @@ export async function GET(
     }
 
     // Get all payments for this invoice
-    const payments = await CustomerPayment.find({
+    const payments = await (CustomerPayment.find as any)({
       companyId: session.companyId,
       isDeleted: false,
       "allocatedInvoices.invoiceId": id,

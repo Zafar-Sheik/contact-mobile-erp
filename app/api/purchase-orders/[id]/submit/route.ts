@@ -14,7 +14,7 @@ export async function POST(
 
     const { id } = await params;
 
-    const result = await submitPO(id, session.userId, session.role || "staff");
+    const result = await submitPO(id, session.userId, (session as any).role || "staff");
 
     if (result.error) {
       const status = result.error.code === "NOT_FOUND" ? 404 : 400;

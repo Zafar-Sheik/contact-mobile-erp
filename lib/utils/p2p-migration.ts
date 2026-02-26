@@ -539,7 +539,7 @@ export async function findCrossSupplierViolations(
   for (const payment of payments) {
     const paymentSupplierId = (payment.supplierId as any)?._id?.toString();
     
-    const billIds = payment.allocations?.map((a) => a.supplierBillId) || [];
+    const billIds = ((payment.allocations as any)?.map((a: any) => a.supplierBillId) || []) as any[];
     const bills = await SupplierBill.find({
       _id: { $in: billIds },
     }).populate("supplierId", "name").lean();

@@ -33,7 +33,7 @@ export async function GET(
     }
 
     // Get payment history for this invoice
-    const payments = await CustomerPayment.find({
+    const payments = await (CustomerPayment.find as any)({
       companyId: session.companyId,
       isDeleted: false,
       "allocatedInvoices.invoiceId": id,
