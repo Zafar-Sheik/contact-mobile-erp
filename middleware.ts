@@ -18,6 +18,7 @@ export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // Protect frontend pages - redirect to login if not authenticated
+  // This applies to ALL pages except /login and /signup
   if (!pathname.startsWith("/api") && !PUBLIC_PAGES.has(pathname)) {
     const token = req.cookies.get(SESSION_COOKIE)?.value;
     if (!token) {
@@ -28,7 +29,7 @@ export function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // Only guard API
+  // Only guard API routes
   if (!pathname.startsWith("/api")) return NextResponse.next();
 
   // Allow auth endpoints
@@ -39,7 +40,7 @@ export function middleware(req: NextRequest) {
   if (!token) {
     // Redirect to login for browser requests
     if (req.headers.get("accept")?.includes("text/html")) {
-      const loginUrl = new URL("/api/auth/login", req.url);
+      const loginUrl = new URL("/login", req.url);
       loginUrl.searchParams.set("callbackUrl", req.url);
       return NextResponse.redirect(loginUrl);
     }

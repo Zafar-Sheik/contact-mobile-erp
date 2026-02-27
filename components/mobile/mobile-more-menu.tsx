@@ -20,6 +20,7 @@ import {
   X,
   Upload,
   LucideIcon,
+  LogOut,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -86,6 +87,17 @@ export function MobileMoreMenu({ open, onClose }: MobileMoreMenuProps) {
   const router = useRouter()
   const [isVisible, setIsVisible] = React.useState(false)
   const menuRef = React.useRef<HTMLDivElement>(null)
+
+  // Handle logout
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" })
+    } catch (e) {
+      // Continue even if API fails
+    }
+    onClose()
+    router.push("/login")
+  }
 
   // Handle open/close animations
   React.useEffect(() => {
@@ -223,6 +235,22 @@ export function MobileMoreMenu({ open, onClose }: MobileMoreMenuProps) {
             <LayoutDashboard className="h-5 w-5 text-primary" strokeWidth={1.5} />
             <span className="font-medium">Back to Dashboard</span>
           </Link>
+          
+          {/* Logout button */}
+          <button
+            onClick={handleLogout}
+            className={cn(
+              "mt-3 flex items-center justify-center gap-2",
+              "rounded-xl border border-destructive/30",
+              "bg-destructive/10 p-4",
+              "hover:bg-destructive/20",
+              "active:scale-95 transition-all duration-150",
+              "w-full"
+            )}
+          >
+            <LogOut className="h-5 w-5 text-destructive" strokeWidth={1.5} />
+            <span className="font-medium text-destructive">Log Out</span>
+          </button>
         </div>
       </div>
     </>
