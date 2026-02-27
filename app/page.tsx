@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   UserPlus,
   Package,
@@ -9,9 +11,11 @@ import {
   CreditCard,
   ClipboardList,
   MoreHorizontal,
+  LogOut,
 } from "lucide-react";
 import Link from "next/link";
 import { MobileMoreMenu, useMobileMoreMenu } from "@/components/mobile/mobile-more-menu";
+import { Button } from "@/components/ui/button";
 
 // Quick link configuration
 const quickLinks = [
@@ -53,35 +57,101 @@ const quickLinks = [
   },
 ];
 
-export default function QuickLinksPage() {
+export default function RootPage() {
+  const router = useRouter();
+  const [isAuthenticated, setIsAuthenticated] = React.useState<boolean | null>(null);
   const { isOpen, open, close } = useMobileMoreMenu();
 
+  useEffect(() => {
+    // Check authentication status
+    const checkAuth = async () => {
+      try {
+        const response = await fetch("/api/debug", { method: "GET" });
+        const data = await response.json();
+        setIsAuthenticated(data.hasSession === true);
+      } catch (e) {
+        setIsAuthenticated(false);
+      }
+    };
+    checkAuth();
+  }, []);
+
+  // Handle logout
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch (e) {
+      // Continue even if API fails
+    }
+    setIsAuthenticated(false);
+    router.push("/login");
+  };
+
+  // Show loading while checking auth
+  if (isAuthenticated === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-gray-500">Loading...</div>
+      </div>
+    );
+  }
+
+  // Show login prompt if not authenticated
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
+        <div className="text-center mb-8">
+          <h1 className="text-2xl font-bold text-gray-900">MR Power</h1>
+          <p className="text-gray-500">Fleet Management System</p>
+        </div>
+        <Link href="/login">
+          <Button size="lg" className="px-8">
+            Sign In
+          </Button>
+        </Link>
+      </div>
+    );
+  }
+
+  // Show quick links if authenticated
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Mobile Header */}
-      <header className="bg-white border-b border-gray-200 px-4 py-4 sticky top-0 z-10">
-        <h1 className="text-xl font-bold text-gray-900 text-center">
+      {/* Header with logout button */}
+      <header className="bg-white border-b border-gray-200 px-4 py-4 sticky top-0 z-10 flex items-center justify-between">
+        <h1 className="text-xl font-bold text-gray-900">
           Quick Links
         </h1>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleLogout}
+          className="flex items-center gap-2 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+        >
+          <LogOut className="w-4 h-4" />
+          Log Out
+        </Button>
       </header>
 
       {/* Main Content - Quick Links Grid */}
       <main className="p-4 pb-28">
         <div className="grid grid-cols-2 gap-4 max-w-md mx-auto">
-          {quickLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="flex flex-col items-center justify-center p-6 bg-white rounded-2xl shadow-sm border border-gray-100 active:scale-95 transition-transform min-h-[140px]"
-            >
-              <div className={`${link.color} p-4 rounded-full mb-3`}>
-                <link.icon className="w-7 h-7 text-white" />
-              </div>
-              <span className="text-sm font-semibold text-gray-800 text-center">
-                {link.label}
-              </span>
-            </Link>
-          ))}
+          {quickLinks.map((link) => {
+            const Icon = link.icon;
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="flex flex-col items-center justify-center p-6 bg-white rounded-2xl shadow-sm border border-gray-100 active:scale-95 transition-transform min-h-[140px]"
+              >
+                <div className={`${link.color} p-4 rounded-full mb-3`}>
+                  <Icon className="w-7 h-7 text-white" />
+                </div>
+                <span className="text-sm font-semibold text-gray-800 text-center">
+                  {link.label}
+                </span>
+              </Link>
+            );
+          })}
         </div>
 
         {/* Footer note */}

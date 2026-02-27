@@ -10,6 +10,7 @@ const PUBLIC_API = new Set([
 ]);
 
 const PUBLIC_PAGES = new Set([
+  "/",
   "/login",
   "/signup",
 ]);
