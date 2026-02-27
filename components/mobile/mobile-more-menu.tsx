@@ -18,6 +18,7 @@ import {
   Activity,
   MapPin,
   X,
+  Upload,
   LucideIcon,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -38,6 +39,7 @@ const moreMenuCategories: MoreMenuCategory[] = [
     name: "Inventory",
     items: [
       { name: "Stock Items", href: "/stock-items", icon: Package },
+      { name: "Import Items", href: "/stock-items/import", icon: Upload },
       { name: "Sites", href: "/sites", icon: MapPin },
       { name: "GRVs", href: "/grvs", icon: FileText },
       { name: "Movements", href: "/inventory-movements", icon: Activity },
