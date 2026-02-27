@@ -14,20 +14,18 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
   if (!body) return badRequest("Invalid JSON body");
 
-  const { email, password, companyId } = body as {
+  const { email, password } = body as {
     email?: string;
     password?: string;
-    companyId?: string;
   };
 
-  if (!companyId?.trim()) return badRequest("companyId is required");
   if (!email?.trim()) return badRequest("Email is required");
   if (!password) return badRequest("Password is required");
 
   const normalizedEmail = email.trim().toLowerCase();
 
+  // Find user by email only
   const user = await User.findOne({
-    companyId: companyId.trim(),
     email: normalizedEmail,
     isDeleted: false,
   }).select("+passHash");

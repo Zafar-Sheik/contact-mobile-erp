@@ -13,7 +13,6 @@ export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
-  const [companyId, setCompanyId] = React.useState("");
   const [error, setError] = React.useState("");
   const [loading, setLoading] = React.useState(false);
 
@@ -34,7 +33,7 @@ export default function LoginPage() {
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, companyId }),
+        body: JSON.stringify({ email, password }),
       });
 
       const data = await response.json();
@@ -81,19 +80,6 @@ export default function LoginPage() {
                   {error}
                 </div>
               )}
-
-              <div className="space-y-2">
-                <Label htmlFor="companyId">Company ID</Label>
-                <Input
-                  id="companyId"
-                  type="text"
-                  placeholder="Enter your company ID"
-                  value={companyId}
-                  onChange={(e) => setCompanyId(e.target.value)}
-                  required
-                  className="h-12"
-                />
-              </div>
 
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
