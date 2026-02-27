@@ -31,7 +31,7 @@ export function useApi<T>(
       // Handle 401 Unauthorized - redirect to login
       if (response.status === 401) {
         if (typeof window !== "undefined") {
-          window.location.href = "/api/auth/login";
+          window.location.href = "/login";
         }
         throw new Error("Session expired. Redirecting to login...");
       }
@@ -72,7 +72,7 @@ export async function apiCreate<T, P = Partial<T>>(
   
   if (response.status === 401) {
     if (typeof window !== "undefined") {
-      window.location.href = "/api/auth/login";
+      window.location.href = "/login";
     }
     throw new Error("Session expired. Please log in again.");
   }
@@ -97,7 +97,7 @@ export async function apiUpdate<T, P = Partial<T>>(
   
   if (response.status === 401) {
     if (typeof window !== "undefined") {
-      window.location.href = "/api/auth/login";
+      window.location.href = "/login";
     }
     throw new Error("Session expired. Please log in again.");
   }
@@ -119,7 +119,7 @@ export async function apiDelete(
   
   if (response.status === 401) {
     if (typeof window !== "undefined") {
-      window.location.href = "/api/auth/login";
+      window.location.href = "/login";
     }
     throw new Error("Session expired. Please log in again.");
   }
