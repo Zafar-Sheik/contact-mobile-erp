@@ -83,7 +83,7 @@ export async function POST(req: Request) {
     email: normalizedEmail,
     phone: phone?.trim() ?? "",
 
-    role: "Owner",
+    role: "admin",
     passHash,
     isActive: true,
     permissions: [],

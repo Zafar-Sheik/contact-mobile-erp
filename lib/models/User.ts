@@ -8,7 +8,7 @@ const UserSchema = new Schema(
     email: { type: String, required: true, trim: true, lowercase: true, maxlength: 200 },
     phone: { type: String, trim: true, maxlength: 50 },
 
-    role: { type: String, enum: ["Owner", "Admin", "Manager", "Finance", "Warehouse", "Staff"], required: true, index: true },
+    role: { type: String, enum: ["admin", "manager", "worker", "viewer"], required: true, default: "worker", index: true },
 
     passHash: { type: String, required: true, select: false }, // never return by default
     isActive: { type: Boolean, default: true, index: true },
