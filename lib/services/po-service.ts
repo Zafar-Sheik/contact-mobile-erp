@@ -1,6 +1,6 @@
 /**
  * Purchase Order Service
- * 
+ *
  * Service layer for PO operations:
  * - CRUD operations
  * - Status transitions (submit, approve, cancel)
@@ -10,9 +10,12 @@
 import { dbConnect } from "@/lib/db";
 import { PurchaseOrder } from "@/lib/models/PurchaseOrder";
 import { Counter } from "@/lib/models/Counter";
-import { Types } from "mongoose";
+import { StockItem } from "@/lib/models/StockItem";
+import { StockItemUsage } from "@/lib/models/StockItemUsage";
+import { Types, Document } from "mongoose";
 
 import { POStatus } from "@/lib/types/p2p-status";
+import { PurchaseOrder as IPurchaseOrder } from "@/lib/types/p2p";
 import { logAuditEntry } from "./p2p-service";
 import { AuditAction } from "@/lib/types/p2p-status";
 
@@ -171,10 +174,14 @@ export async function createPurchaseOrder(
     expectedAt?: Date;
     notes?: string;
     lines: Array<{
-      stockItemId: string;
-      description: string;
-      orderedQty: number;
-      unitCostCents: number;
+      stockItemId?: string;
+      quantity: number;
+      unitCostCents?: number;
+      taxRate?: number;
+      discountCents?: number;
+      // Legacy fields for backward compatibility
+      description?: string;
+      orderedQty?: number;
     }>;
   },
   userId: string,
@@ -192,6 +199,51 @@ export async function createPurchaseOrder(
     };
   }
 
+  // Validate line items
+  if (!data.lines || data.lines.length === 0) {
+    return {
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "At least one line item is required",
+      },
+    };
+  }
+
+  // Validate each line item
+  for (let i = 0; i < data.lines.length; i++) {
+    const line = data.lines[i];
+    const lineNum = i + 1;
+    const quantity = line.quantity ?? line.orderedQty ?? 0;
+    const unitCostCents = line.unitCostCents ?? 0;
+
+    if (!line.stockItemId) {
+      return {
+        error: {
+          code: "VALIDATION_ERROR",
+          message: `Line ${lineNum}: Stock item is required`,
+        },
+      };
+    }
+
+    if (quantity <= 0) {
+      return {
+        error: {
+          code: "VALIDATION_ERROR",
+          message: `Line ${lineNum}: Quantity must be greater than 0`,
+        },
+      };
+    }
+
+    if (unitCostCents < 0) {
+      return {
+        error: {
+          code: "VALIDATION_ERROR",
+          message: `Line ${lineNum}: Unit cost cannot be negative`,
+        },
+      };
+    }
+  }
+
   // Generate PO number
   const counter = await Counter.findOneAndUpdate(
     { companyId, key: "PO", isDeleted: false },
@@ -201,22 +253,87 @@ export async function createPurchaseOrder(
 
   const poNumber = `PO-${String(counter.nextNumber).padStart(6, "0")}`;
 
-  // Calculate totals
+  // Collect unique stock item IDs to fetch
+  const stockItemIds = data.lines
+    ?.filter((line) => line.stockItemId)
+    .map((line) => new Types.ObjectId(line.stockItemId));
+
+  // Fetch stock items for validation and snapshots
+  const stockItemsMap = new Map<string, any>();
+  if (stockItemIds && stockItemIds.length > 0) {
+    const stockItems = await StockItem.find({
+      _id: { $in: stockItemIds },
+      companyId,
+      isDeleted: false,
+    });
+
+    // Validate all stock items belong to this company
+    if (stockItems.length !== stockItemIds.length) {
+      return {
+        error: {
+          code: "VALIDATION_ERROR",
+          message: "One or more stock items not found or do not belong to your company",
+        },
+      };
+    }
+
+    // Build map for quick lookup
+    stockItems.forEach((item) => {
+      stockItemsMap.set(item._id.toString(), item);
+    });
+  }
+
+  // Calculate totals and build line items with snapshots
   let subtotalCents = 0;
+  let taxCents = 0;
+  
   const lines = data.lines?.map((line, index) => {
-    const lineTotal = (line.orderedQty || 0) * (line.unitCostCents || 0);
-    subtotalCents += lineTotal;
+    const quantity = line.quantity ?? line.orderedQty ?? 0;
+    const unitCostCents = line.unitCostCents ?? 0;
+    const discountCents = line.discountCents ?? 0;
+    const taxRate = line.taxRate;
+    
+    // Get stock item for snapshot (if provided)
+    const stockItem = line.stockItemId ? stockItemsMap.get(line.stockItemId) : null;
+    
+    // Use provided unit cost or default to stock item's cost price
+    const finalUnitCostCents = unitCostCents || stockItem?.pricing?.costPriceCents || 0;
+    
+    // Calculate line subtotal: quantity * unit cost - discount
+    const lineSubtotal = (quantity * finalUnitCostCents) - discountCents;
+    subtotalCents += lineSubtotal;
+    
+    // Calculate tax if applicable (South Africa VAT is 15%)
+    if (taxRate && taxRate > 0) {
+      const lineTax = Math.round(lineSubtotal * (taxRate / 10000));
+      taxCents += lineTax;
+    }
 
     return {
       lineNo: index + 1,
-      stockItemId: line.stockItemId,
-      description: line.description,
-      orderedQty: line.orderedQty,
+      stockItemId: line.stockItemId ? new Types.ObjectId(line.stockItemId) : null,
+      // Snapshots from stock item (or use legacy description)
+      skuSnapshot: stockItem?.sku || "",
+      nameSnapshot: stockItem?.name || "",
+      descriptionSnapshot: stockItem?.description || "",
+      unitSnapshot: stockItem?.unit || "",
+      // Legacy field
+      description: line.description || stockItem?.name || "",
+      // Quantity
+      quantity,
+      orderedQty: quantity, // For backward compatibility
       receivedQty: 0,
-      unitCostCents: line.unitCostCents,
-      subtotalCents: lineTotal,
+      // Pricing
+      unitCostCents: finalUnitCostCents,
+      subtotalCents: lineSubtotal,
+      // Optional
+      taxRate: taxRate ?? null,
+      discountCents,
     };
   }) || [];
+
+  // Calculate grand total
+  const grandTotalCents = subtotalCents + taxCents;
 
   // Create PO
   const order = await PurchaseOrder.create({
@@ -228,9 +345,11 @@ export async function createPurchaseOrder(
     notes: data.notes || "",
     lines,
     subtotalCents,
+    taxCents,
+    grandTotalCents,
     createdBy: new Types.ObjectId(userId),
     updatedBy: new Types.ObjectId(userId),
-  });
+  }) as Document & IPurchaseOrder;
 
   await order.populate("supplierId", "name email phone");
 
@@ -243,6 +362,25 @@ export async function createPurchaseOrder(
     userId,
     screen: "PurchaseOrders",
   });
+
+  // Track stock item usage for each line item
+  const now = new Date();
+  for (const line of lines) {
+    if (line.stockItemId) {
+      const stockItemId = line.stockItemId instanceof Types.ObjectId 
+        ? line.stockItemId 
+        : new Types.ObjectId(line.stockItemId as string);
+      
+      // Upsert: update lastUsedAt
+      await StockItemUsage.findOneAndUpdate(
+        { companyId, stockItemId },
+        {
+          $set: { lastUsedAt: now },
+        },
+        { upsert: true }
+      );
+    }
+  }
 
   return {
     data: {
@@ -384,7 +522,7 @@ export async function cancelPO(
 ): Promise<{ data?: any; error?: ServiceError }> {
   await dbConnect();
 
-  const po = await PurchaseOrder.findById(poId);
+  const po = await PurchaseOrder.findById(poId) as any;
   if (!po) {
     return { error: { code: "NOT_FOUND", message: "PO not found" } };
   }

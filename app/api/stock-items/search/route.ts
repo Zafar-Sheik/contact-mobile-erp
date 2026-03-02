@@ -44,14 +44,17 @@ interface SearchParams {
   q?: string;
   limit?: number;
   cursor?: string;
+  mode?: string;
 }
 
 function parseSearchParams(searchParams: SearchParams): { 
   query: string; 
   limit: number; 
-  cursor: string | null 
+  cursor: string | null;
+  mode: string;
 } {
   const q = searchParams.q?.trim() || "";
+  const mode = searchParams.mode || "invoice";
   
   // Validate query length - reject too-short queries early
   if (q.length === 1) {
@@ -71,7 +74,7 @@ function parseSearchParams(searchParams: SearchParams): {
   // Parse cursor
   const cursor = searchParams.cursor?.trim() || null;
   
-  return { query: q, limit, cursor };
+  return { query: q, limit, cursor, mode };
 }
 
 export async function GET(request: Request) {
@@ -96,6 +99,7 @@ export async function GET(request: Request) {
       q: searchParams.get("q") || undefined,
       limit: searchParams.get("limit") ? parseInt(searchParams.get("limit")!, 10) : undefined,
       cursor: searchParams.get("cursor") || undefined,
+      mode: searchParams.get("mode") || undefined,
     };
     
     // Parse and validate params

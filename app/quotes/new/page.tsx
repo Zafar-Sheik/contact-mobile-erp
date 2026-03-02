@@ -142,7 +142,7 @@ export default function NewQuotePage() {
   };
 
   // Handle stock item selection from modal
-  const handleStockItemSelect = async (item: StockItemSelectorItem) => {
+  const handleStockItemSelect = async (item: StockItemSelectorItem, priceCents: number) => {
     if (activeLineIndex === null) return;
     const line = formData.lines[activeLineIndex];
     if (!line) return;
@@ -152,7 +152,7 @@ export default function NewQuotePage() {
       itemName: item.name,
       itemSku: item.sku,
       itemUnit: item.unit,
-      unitPrice: item.pricing?.salePriceCents ? item.pricing.salePriceCents / 100 : 0,
+      unitPrice: priceCents / 100, // Use the default price from selector
       qty: line.qty || 1,
     });
 
@@ -519,6 +519,7 @@ export default function NewQuotePage() {
         onOpenChange={setIsSelectorOpen}
         onSelect={handleStockItemSelect}
         activeLineIndex={activeLineIndex ?? undefined}
+        mode="quote"
       />
     </div>
   );

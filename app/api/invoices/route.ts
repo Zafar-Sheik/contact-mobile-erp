@@ -1,13 +1,17 @@
+import mongoose from "mongoose";
 import { NextResponse } from "next/server";
 import { dbConnect } from "@/lib/db";
 import { SalesInvoice } from "@/lib/models/SalesInvoice";
-import { SalesQuote } from "@/lib/models/SalesQuote";
+import { SalesQuote, SalesQuoteSchema } from "@/lib/models/SalesQuote";
 import { Client } from "@/lib/models/Client";
 import { Counter } from "@/lib/models/Counter";
 import { getSessionClaims } from "@/lib/auth/session";
 import { calculateDocumentTotals, calculateLineTotal, isOverdue } from "@/lib/utils/totals";
 import { StockItem } from "@/lib/models/StockItem";
 import { validateLineItems } from "@/lib/utils/line-item-validation";
+
+// Ensure SalesQuote model is registered in Mongoose
+mongoose.model("SalesQuote", SalesQuoteSchema);
 
 // GET /api/invoices - List all invoices with pagination
 export async function GET(req: Request) {
