@@ -7,6 +7,7 @@ import { Counter } from "@/lib/models/Counter";
 import { getSessionClaims } from "@/lib/auth/session";
 import { calculateDocumentTotals, calculateLineTotal, isOverdue } from "@/lib/utils/totals";
 import { StockItem } from "@/lib/models/StockItem";
+import { validateLineItems } from "@/lib/utils/line-item-validation";
 
 // GET /api/invoices - List all invoices with pagination
 export async function GET(req: Request) {
@@ -152,45 +153,20 @@ export async function POST(req: Request) {
     const sequence = String(counter.nextNumber).padStart(5, "0");
     const invoiceNumber = `INV-${sequence}`;
 
-    // Process lines and calculate totals
+    // Process lines with validation
     const vatMode = body.vatMode || "exclusive";
     const vatRateBps = body.vatRateBps || 1500;
 
-    const processedLines = await Promise.all(
-      body.lines.map(async (line: any, index: number) => {
-        const qty = line.qty || 0;
-        const unitPriceCents = line.unitPriceCents || 0;
-        const discountCents = line.discountCents || 0;
-        const taxable = line.taxable !== false;
-
-        // Get stock item for snapshot if provided
-        let skuSnapshot = "";
-        let nameSnapshot = "";
-
-        if (line.stockItemId) {
-          const stockItem = await StockItem.findById(line.stockItemId).lean();
-          if (stockItem) {
-            skuSnapshot = stockItem.sku || "";
-            nameSnapshot = stockItem.name || "";
-          }
-        }
-
-        // Calculate line total
-        const lineTotalCents = calculateLineTotal(qty, unitPriceCents, discountCents);
-
-        return {
-          lineNo: index + 1,
-          stockItemId: line.stockItemId || null,
-          skuSnapshot: line.skuSnapshot || skuSnapshot,
-          nameSnapshot: line.nameSnapshot || nameSnapshot,
-          qty,
-          unitPriceCents,
-          discountCents,
-          taxable,
-          lineTotalCents,
-        };
-      })
-    );
+    // Validate and process line items
+    let processedLines;
+    try {
+      processedLines = await validateLineItems(body.lines, session.companyId, { requireStockItem: false });
+    } catch (error) {
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : "Invalid line items" },
+        { status: 400 }
+      );
+    }
 
     // Calculate document totals
     const totals = calculateDocumentTotals(
