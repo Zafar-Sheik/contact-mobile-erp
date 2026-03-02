@@ -7,11 +7,13 @@ import { addBaseFields, baseOptions, softDeletePlugin } from "./_base";
 const SalesQuoteLineSchema = new Schema(
   {
     lineNo: { type: Number, required: true, min: 1 },
-    stockItemId: { type: Schema.Types.ObjectId, ref: "StockItem", default: null },
+    stockItemId: { type: Schema.Types.ObjectId, ref: "StockItem", default: null, index: true },
     
     // Snapshot of item at time of quote (for audit)
     skuSnapshot: { type: String, default: "" },
     nameSnapshot: { type: String, default: "" },
+    descriptionSnapshot: { type: String, default: "" },
+    unitSnapshot: { type: String, default: "" },
     
     // Quantity and pricing
     qty: { type: Number, required: true, min: 0 },

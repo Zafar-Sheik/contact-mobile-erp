@@ -9,6 +9,7 @@ import {
   Save,
   X,
   ChevronDown,
+  Package,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/components/ui/use-toast";
 import { useApi, apiCreate } from "@/lib/hooks/use-api";
 import { MobileMoreMenu, useMobileMoreMenu } from "@/components/mobile/mobile-more-menu";
+import { StockItemSelector, StockItemSelectorTrigger, StockItemSelectorItem } from "@/components/erp/stock-item-selector";
 
 // Types
 interface Client {
@@ -33,18 +35,12 @@ interface Client {
   name: string;
 }
 
-interface StockItem {
-  _id: string;
-  sku: string;
-  name: string;
-  unit: string;
-}
-
 interface QuoteLine {
   id: string;
-  stockItemId: string;
+  stockItemId: string | null;
   itemName: string;
   itemSku: string;
+  itemUnit: string;
   qty: number;
   unitPrice: number;
   discount: number;
@@ -63,9 +59,10 @@ interface QuoteFormData {
 
 const createEmptyLine = (): QuoteLine => ({
   id: `temp-${Date.now()}-${Math.random()}`,
-  stockItemId: "",
+  stockItemId: null,
   itemName: "",
   itemSku: "",
+  itemUnit: "each",
   qty: 1,
   unitPrice: 0,
   discount: 0,
@@ -88,7 +85,10 @@ export default function NewQuotePage() {
 
   // API data
   const { data: clients } = useApi<Client[]>("/api/clients");
-  const { data: stockItems } = useApi<StockItem[]>("/api/stock-items");
+  
+  // Modal state
+  const [isSelectorOpen, setIsSelectorOpen] = React.useState(false);
+  const [activeLineIndex, setActiveLineIndex] = React.useState<number | null>(null);
 
   // Form state
   const [formData, setFormData] = React.useState<QuoteFormData>({
@@ -141,16 +141,42 @@ export default function NewQuotePage() {
     }));
   };
 
-  // Handle stock item selection
-  const handleStockItemChange = (lineId: string, itemId: string) => {
-    const item = stockItems?.find((i) => i._id === itemId);
-    if (item) {
-      updateLine(lineId, {
-        stockItemId: itemId,
-        itemName: item.name,
-        itemSku: item.sku,
-      });
-    }
+  // Handle stock item selection from modal
+  const handleStockItemSelect = async (item: StockItemSelectorItem) => {
+    if (activeLineIndex === null) return;
+    const line = formData.lines[activeLineIndex];
+    if (!line) return;
+    
+    updateLine(line.id, {
+      stockItemId: item._id,
+      itemName: item.name,
+      itemSku: item.sku,
+      itemUnit: item.unit,
+      unitPrice: item.pricing?.salePriceCents ? item.pricing.salePriceCents / 100 : 0,
+      qty: line.qty || 1,
+    });
+
+    // Track usage in background (fire and forget)
+    fetch(`/api/stock-items/track-usage?stockItemId=${item._id}`, { method: "POST" }).catch(() => {});
+    
+    setActiveLineIndex(null);
+  };
+
+  // Open selector for specific line
+  const openSelectorForLine = (lineIndex: number) => {
+    setActiveLineIndex(lineIndex);
+    setIsSelectorOpen(true);
+  };
+
+  // Clear stock item from line
+  const clearStockItem = (lineId: string) => {
+    updateLine(lineId, {
+      stockItemId: null,
+      itemName: "",
+      itemSku: "",
+      itemUnit: "each",
+      unitPrice: 0,
+    });
   };
 
   // Handle cancel
@@ -167,7 +193,7 @@ export default function NewQuotePage() {
 
     const validLines = formData.lines.filter((l) => l.stockItemId);
     if (validLines.length === 0) {
-      toast({ title: "Error", description: "Please add at least one line item", variant: "destructive" });
+      toast({ title: "Error", description: "Please add at least one line item with a stock item", variant: "destructive" });
       return;
     }
 
@@ -284,21 +310,35 @@ export default function NewQuotePage() {
                   )}
                 </div>
 
-                <Select
-                  value={line.stockItemId}
-                  onValueChange={(value) => handleStockItemChange(line.id, value)}
-                >
-                  <SelectTrigger className="h-11">
-                    <SelectValue placeholder="Select item" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {stockItems?.map((item) => (
-                      <SelectItem key={item._id} value={item._id}>
-                        {item.name} ({item.sku})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="space-y-1">
+                  <Label className="text-xs text-gray-500">Stock Item</Label>
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <StockItemSelectorTrigger
+                        onClick={() => openSelectorForLine(index)}
+                        hasSelection={!!line.stockItemId}
+                        itemName={line.itemName}
+                        itemSku={line.itemSku}
+                        itemUnit={line.itemUnit}
+                      />
+                    </div>
+                    {line.stockItemId && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => clearStockItem(line.id)}
+                        className="h-11 w-11 text-gray-400 hover:text-red-500"
+                        title="Clear item"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                  {!line.stockItemId && (
+                    <p className="text-xs text-red-500 mt-1">Please select a stock item</p>
+                  )}
+                </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
@@ -472,6 +512,14 @@ export default function NewQuotePage() {
 
       {/* Mobile More Menu */}
       <MobileMoreMenu open={isMoreOpen} onClose={closeMore} />
+
+      {/* Stock Item Selector Modal */}
+      <StockItemSelector
+        open={isSelectorOpen}
+        onOpenChange={setIsSelectorOpen}
+        onSelect={handleStockItemSelect}
+        activeLineIndex={activeLineIndex ?? undefined}
+      />
     </div>
   );
 }
