@@ -1,4 +1,4 @@
-import { Schema, model, models } from "mongoose";
+import { Schema, model } from "mongoose";
 import { addBaseFields, baseOptions, softDeletePlugin } from "./_base";
 
 /**
@@ -118,5 +118,6 @@ SalesInvoiceSchema.index({ companyId: 1, clientId: 1, status: 1 });
 SalesInvoiceSchema.index({ companyId: 1, status: 1, issueDate: -1 });
 SalesInvoiceSchema.index({ companyId: 1, dueDate: 1, status: 1 });
 
-export const SalesInvoice = 
-  models.SalesInvoice || model("SalesInvoice", SalesInvoiceSchema);
+const SalesInvoice = model("SalesInvoice", SalesInvoiceSchema);
+
+export { SalesInvoice, SalesInvoiceSchema };

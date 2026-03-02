@@ -7,13 +7,9 @@ import {
   Edit,
   Trash2,
   Package,
-  AlertTriangle,
-  CheckCircle,
-  XCircle,
   MoreHorizontal,
-  ArrowLeft,
   PackageX,
-  Upload,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,7 +39,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useApi, apiCreate, apiUpdate, apiDelete } from "@/lib/hooks/use-api";
+import { apiCreate, apiUpdate, apiDelete } from "@/lib/hooks/use-api";
 import { MobileMoreMenu, useMobileMoreMenu } from "@/components/mobile/mobile-more-menu";
 
 // StockItem type matching the model (response from API)
@@ -70,6 +66,13 @@ interface StockItem {
   isActive: boolean;
   createdAt?: string;
   updatedAt?: string;
+}
+
+interface StockItemsResponse {
+  items: StockItem[];
+  totalCount: number;
+  totalPages: number;
+  currentPage: number;
 }
 
 interface StockItemFormData {
@@ -106,38 +109,208 @@ const formatCurrency = (cents: number) => {
   }).format(cents / 100);
 };
 
+// Debounce hook
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = React.useState<T>(value);
+
+  React.useEffect(() => {
+    const timer = setTimeout(() => setDebouncedValue(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+
+  return debouncedValue;
+}
+
+// Highlight matched text component
+function HighlightedText({ text, query }: { text: string; query: string }) {
+  if (!query.trim() || query.trim().length < 2) {
+    return <>{text}</>;
+  }
+
+  const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const parts = text.split(new RegExp(`(${escapedQuery})`, "gi"));
+  return (
+    <>
+      {parts.map((part, i) =>
+        part.toLowerCase() === query.toLowerCase() ? (
+          <mark key={i} className="bg-yellow-200 text-gray-900 rounded px-0.5 font-semibold">
+            {part}
+          </mark>
+        ) : (
+          part
+        )
+      )}
+    </>
+  );
+}
+
+// Hook to detect when element is in viewport (for infinite scroll)
+function useInView(options?: IntersectionObserverInit) {
+  const [isInView, setIsInView] = React.useState(false);
+  const elementRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const element = elementRef.current;
+    if (!element) return;
+
+    const observer = new IntersectionObserver(([entry]) => {
+      setIsInView(entry.isIntersecting);
+    }, options);
+
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [options]);
+
+  return { elementRef, isInView };
+}
+
 export default function StockItemsPage() {
   const { toast } = useToast();
   const { isOpen: isMoreOpen, open: openMore, close: closeMore } = useMobileMoreMenu();
 
-  // API hooks
-  const { data: stockItems, loading, error, refetch } = useApi<StockItem[]>("/api/stock-items");
+  // Infinite scroll state
+  const [items, setItems] = React.useState<StockItem[]>([]);
+  const [page, setPage] = React.useState(1);
+  const [hasMore, setHasMore] = React.useState(true);
+  const [totalCount, setTotalCount] = React.useState(0);
+  const [loading, setLoading] = React.useState(false);
+  const [isSearching, setIsSearching] = React.useState(false);
+  const [searchQuery, setSearchQuery] = React.useState("");
+  const [error, setError] = React.useState<Error | null>(null);
 
-  // State
-  const [searchTerm, setSearchTerm] = React.useState("");
+  // Refs for abort controller and tracking loading state
+  const abortControllerRef = React.useRef<AbortController | null>(null);
+  const isFetchingRef = React.useRef(false);
+
+  // Debounce search query
+  const debouncedSearch = useDebounce(searchQuery, 300);
+
+  // Form/dialog state
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [selectedItem, setSelectedItem] = React.useState<StockItem | null>(null);
   const [formData, setFormData] = React.useState<StockItemFormData>(initialFormData);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
-  // Filter items
-  const filteredItems = React.useMemo(() => {
-    if (!stockItems) return [];
-    return stockItems.filter((item) => {
-      const matchesSearch =
-        !searchTerm ||
-        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.sku.toLowerCase().includes(searchTerm.toLowerCase());
-      return matchesSearch;
-    });
-  }, [stockItems, searchTerm]);
+  // Infinite scroll trigger - detect when near bottom
+  const { elementRef: loadMoreRef, isInView } = useInView({
+    threshold: 0.1,
+    rootMargin: "100px",
+  });
+
+  // Fetch items with infinite scroll
+  const fetchItems = React.useCallback(
+    async (currentPage: number, search?: string, isAppend: boolean = false) => {
+      // Prevent duplicate requests
+      if (isFetchingRef.current) return;
+      isFetchingRef.current = true;
+
+      // Cancel any in-flight request
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+
+      // Create new abort controller for this request
+      abortControllerRef.current = new AbortController();
+
+      setLoading(true);
+      setIsSearching(!!search?.trim());
+      setError(null);
+
+      try {
+        const params = new URLSearchParams();
+        params.set("page", String(currentPage));
+        params.set("limit", "100");
+        if (search?.trim()) {
+          params.set("q", search.trim());
+        }
+        params.set("sortBy", "name");
+        params.set("sortOrder", "asc");
+
+        const response = await fetch(`/api/stock-items?${params.toString()}`, {
+          signal: abortControllerRef.current.signal,
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch stock items");
+        }
+
+        const data: StockItemsResponse = await response.json();
+
+        if (isAppend) {
+          // Append new items to existing list
+          setItems((prev) => {
+            // Prevent duplicate items
+            const existingIds = new Set(prev.map((item) => item._id));
+            const newItems = data.items.filter((item) => !existingIds.has(item._id));
+            return [...prev, ...newItems];
+          });
+        } else {
+          // Reset items (new search or initial load)
+          setItems(data.items);
+        }
+
+        setPage(data.currentPage);
+        setTotalCount(data.totalCount);
+        setHasMore(data.currentPage < data.totalPages);
+      } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") {
+          return;
+        }
+        setError(err instanceof Error ? err : new Error("An error occurred"));
+      } finally {
+        setLoading(false);
+        setIsSearching(false);
+        isFetchingRef.current = false;
+      }
+    },
+    []
+  );
+
+  // Cleanup abort controller on unmount
+  React.useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
+  // Initial load
+  React.useEffect(() => {
+    setItems([]);
+    setPage(1);
+    setHasMore(true);
+    fetchItems(1, "", false);
+  }, [fetchItems]);
+
+  // Handle search changes - reset list and search
+  React.useEffect(() => {
+    const shouldSearch = debouncedSearch === "" || debouncedSearch.trim().length >= 2;
+
+    if (shouldSearch) {
+      setItems([]);
+      setPage(1);
+      setHasMore(true);
+      fetchItems(1, debouncedSearch, false);
+    }
+  }, [debouncedSearch, fetchItems]);
+
+  // Infinite scroll - load more when near bottom
+  React.useEffect(() => {
+    if (isInView && hasMore && !loading && !isFetchingRef.current) {
+      const nextPage = page + 1;
+      fetchItems(nextPage, debouncedSearch, true);
+    }
+  }, [isInView, hasMore, loading, page, debouncedSearch, fetchItems]);
 
   // Get status info
-  const getStatusInfo = (item: StockItem): { label: string; variant: "success" | "warning" | "destructive" } => {
+  const getStatusInfo = (
+    item: StockItem
+  ): { label: string; variant: "success" | "warning" | "destructive" } => {
     const qty = item.inventory?.onHand ?? 0;
     const reorderLevel = item.inventory?.reorderLevel ?? 0;
-    
+
     if (qty === 0) {
       return { label: "Out of Stock", variant: "destructive" };
     }
@@ -202,7 +375,9 @@ export default function StockItemsPage() {
       }
 
       handleCloseDialog();
-      refetch();
+      // Refresh current list
+      setItems([]);
+      fetchItems(1, debouncedSearch, false);
     } catch (err) {
       toast({
         title: "Error",
@@ -223,7 +398,9 @@ export default function StockItemsPage() {
       toast({ title: "Success", description: "Stock item deleted successfully" });
       setIsDeleteDialogOpen(false);
       setSelectedItem(null);
-      refetch();
+      // Refresh current list
+      setItems([]);
+      fetchItems(1, debouncedSearch, false);
     } catch (err) {
       toast({
         title: "Error",
@@ -235,6 +412,9 @@ export default function StockItemsPage() {
     }
   };
 
+  // Determine if we're in a "typing but not searching yet" state (1 char typed)
+  const typingButNotSearching = searchQuery.trim().length === 1 && debouncedSearch === searchQuery;
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Mobile Header */}
@@ -242,12 +422,7 @@ export default function StockItemsPage() {
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-bold text-gray-900">Stock Items</h1>
           <div className="flex items-center gap-2">
-            <Button
-              size="icon"
-              variant="ghost"
-              onClick={openMore}
-              className="h-10 w-10"
-            >
+            <Button size="icon" variant="ghost" onClick={openMore} className="h-10 w-10">
               <MoreHorizontal className="h-5 w-5" />
             </Button>
           </div>
@@ -259,18 +434,37 @@ export default function StockItemsPage() {
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search items..."
             className="pl-10 h-12 bg-gray-50 border-gray-200 rounded-xl"
           />
+          {/* Searching indicator */}
+          {isSearching && (
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-gray-500">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span className="text-xs">Searching...</span>
+            </div>
+          )}
         </div>
+        {/* Typing hint */}
+        {typingButNotSearching && (
+          <p className="text-xs text-gray-500 mt-1 ml-1">Type at least 2 characters to search</p>
+        )}
       </div>
 
+      {/* Results Count */}
+      {!loading && !error && totalCount > 0 && (
+        <div className="px-4 py-2 bg-gray-50 border-b border-gray-200 text-sm text-gray-600">
+          Showing {items.length} of {totalCount} items
+          {debouncedSearch && <span className="ml-1">for "{debouncedSearch}"</span>}
+        </div>
+      )}
+
       {/* Main Content */}
-      <main className="p-4 pb-24">
-        {/* Loading State */}
-        {loading && (
+      <main className="p-4 pb-32">
+        {/* Initial Loading State */}
+        {loading && items.length === 0 && (
           <div className="space-y-3">
             {[1, 2, 3, 4, 5].map((i) => (
               <div key={i} className="bg-white rounded-2xl p-4 animate-pulse">
@@ -286,28 +480,51 @@ export default function StockItemsPage() {
           <div className="bg-red-50 border border-red-200 rounded-2xl p-4 text-center">
             <p className="text-red-600 font-medium">Error loading items</p>
             <p className="text-red-500 text-sm mt-1">{error.message}</p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setItems([]);
+                fetchItems(1, debouncedSearch, false);
+              }}
+              className="mt-3"
+            >
+              Retry
+            </Button>
           </div>
         )}
 
-        {/* Empty State */}
-        {!loading && !error && filteredItems.length === 0 && (
+        {/* No Results State - Search returned empty */}
+        {!loading && !error && items.length === 0 && debouncedSearch.trim().length >= 2 && (
+          <div className="flex flex-col items-center justify-center py-12">
+            <div className="bg-gray-100 p-4 rounded-full mb-4">
+              <Search className="h-10 w-10 text-gray-400" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">No results found</h3>
+            <p className="text-gray-500 text-sm mb-4">
+              No items match "{debouncedSearch}". Try a different search term.
+            </p>
+            <Button variant="outline" size="sm" onClick={() => setSearchQuery("")}>
+              Clear Search
+            </Button>
+          </div>
+        )}
+
+        {/* Empty State - No items at all */}
+        {!loading && !error && items.length === 0 && !debouncedSearch && (
           <div className="flex flex-col items-center justify-center py-12">
             <div className="bg-gray-100 p-4 rounded-full mb-4">
               <PackageX className="h-10 w-10 text-gray-400" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">
-              {searchTerm ? "No items found" : "No stock items yet"}
-            </h3>
-            <p className="text-gray-500 text-sm mb-4">
-              {searchTerm ? "Try a different search term" : "Add your first stock item to get started"}
-            </p>
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">No stock items yet</h3>
+            <p className="text-gray-500 text-sm mb-4">Add your first stock item to get started</p>
           </div>
         )}
 
-        {/* Stock Items List */}
-        {!loading && !error && filteredItems.length > 0 && (
+        {/* Stock Items List - Infinite Scroll */}
+        {!error && items.length > 0 && (
           <div className="space-y-3 max-w-md mx-auto">
-            {filteredItems.map((item) => {
+            {items.map((item) => {
               const status = getStatusInfo(item);
               return (
                 <div
@@ -317,8 +534,12 @@ export default function StockItemsPage() {
                 >
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-gray-900 truncate">{item.name}</h3>
-                      <p className="text-sm text-gray-500">{item.sku}</p>
+                      <h3 className="font-semibold text-gray-900 truncate">
+                        <HighlightedText text={item.name} query={debouncedSearch} />
+                      </h3>
+                      <p className="text-sm text-gray-500">
+                        <HighlightedText text={item.sku} query={debouncedSearch} />
+                      </p>
                     </div>
                     <Badge
                       variant={
@@ -333,11 +554,12 @@ export default function StockItemsPage() {
                       {status.label}
                     </Badge>
                   </div>
-                  
+
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4 text-sm">
                       <span className="text-gray-600">
-                        <span className="font-medium">{item.inventory?.onHand ?? 0}</span> {item.unit}
+                        <span className="font-medium">{item.inventory?.onHand ?? 0}</span>{" "}
+                        {item.unit}
                       </span>
                       <span className="text-gray-400">|</span>
                       <span className="text-gray-600">
@@ -373,6 +595,26 @@ export default function StockItemsPage() {
                 </div>
               );
             })}
+
+            {/* Infinite Scroll Trigger Element */}
+            <div ref={loadMoreRef} data-testid="infinite-scroll-trigger" className="h-4" />
+
+            {/* Loading More Indicator */}
+            {loading && items.length > 0 && (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+                <span className="ml-2 text-sm text-gray-500">Loading more...</span>
+              </div>
+            )}
+
+            {/* End of List Message */}
+            {!hasMore && items.length > 0 && (
+              <div className="text-center py-4 text-sm text-gray-500">
+                {items.length === totalCount
+                  ? `All ${totalCount} items loaded`
+                  : "No more items to load"}
+              </div>
+            )}
           </div>
         )}
       </main>
@@ -403,9 +645,7 @@ export default function StockItemsPage() {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>
-              {selectedItem ? "Edit Stock Item" : "Add Stock Item"}
-            </DialogTitle>
+            <DialogTitle>{selectedItem ? "Edit Stock Item" : "Add Stock Item"}</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
@@ -502,11 +742,7 @@ export default function StockItemsPage() {
           </div>
 
           <DialogFooter className="flex-row gap-2 sm:gap-0">
-            <Button
-              variant="outline"
-              onClick={handleCloseDialog}
-              className="flex-1 h-12"
-            >
+            <Button variant="outline" onClick={handleCloseDialog} className="flex-1 h-12">
               Cancel
             </Button>
             <Button

@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useApi, apiCreate, apiUpdate, apiDelete } from "@/lib/hooks/use-api";
 import { MobileMoreMenu, useMobileMoreMenu } from "@/components/mobile/mobile-more-menu";
+import { StockItemSelector, StockItemSelectorTrigger, StockItemSelectorItem } from "@/components/erp/stock-item-selector";
 
 // Types
 interface Supplier {
@@ -73,6 +74,10 @@ interface PurchaseOrder {
 interface POLine {
   stockItemId: string;
   stockItemName: string;
+  skuSnapshot: string;
+  nameSnapshot: string;
+  descriptionSnapshot: string;
+  unitSnapshot: string;
   description: string;
   orderedQty: number;
   unitCostCents: number;
@@ -138,7 +143,10 @@ export default function PurchaseOrdersPage() {
   // API hooks
   const { data: orders, loading, error, refetch } = useApi<PurchaseOrder[]>("/api/purchase-orders");
   const { data: suppliers } = useApi<Supplier[]>("/api/suppliers");
-  const { data: stockItems } = useApi<StockItem[]>("/api/stock-items");
+
+  // Modal state for stock item selector
+  const [isSelectorOpen, setIsSelectorOpen] = React.useState(false);
+  const [activeLineIndex, setActiveLineIndex] = React.useState<number | null>(null);
 
   // State
   const [searchTerm, setSearchTerm] = React.useState("");
@@ -164,12 +172,16 @@ export default function PurchaseOrdersPage() {
     if (order) {
       setSelectedOrder(order);
       const supplierId = typeof order.supplierId === "object" ? order.supplierId._id : order.supplierId;
-      // Handle lines if they exist on the order
+      // Handle lines if they exist on the order - map snapshot fields
       const orderLines: POLine[] = (order as any).lines?.map((line: any) => ({
         stockItemId: line.stockItemId?._id || line.stockItemId || "",
-        stockItemName: line.stockItemId?.name || line.description || "",
+        stockItemName: line.nameSnapshot || line.stockItemId?.name || line.description || "",
+        skuSnapshot: line.skuSnapshot || "",
+        nameSnapshot: line.nameSnapshot || "",
+        descriptionSnapshot: line.descriptionSnapshot || "",
+        unitSnapshot: line.unitSnapshot || "",
         description: line.description || "",
-        orderedQty: line.orderedQty || 0,
+        orderedQty: line.quantity || line.orderedQty || 0,
         unitCostCents: line.unitCostCents || 0,
         subtotalCents: line.subtotalCents || 0,
       })) || [];
@@ -216,6 +228,13 @@ export default function PurchaseOrdersPage() {
           }
           return {
             stockItemId: line.stockItemId || undefined,
+            quantity: line.orderedQty || 1,
+            // Snapshots
+            skuSnapshot: line.skuSnapshot || "",
+            nameSnapshot: line.nameSnapshot || line.stockItemName || "",
+            descriptionSnapshot: line.descriptionSnapshot || "",
+            unitSnapshot: line.unitSnapshot || "",
+            // Legacy
             description: description,
             orderedQty: line.orderedQty || 1,
             unitCostCents: line.unitCostCents || 0,
@@ -270,6 +289,10 @@ export default function PurchaseOrdersPage() {
     const newLine: POLine = {
       stockItemId: "",
       stockItemName: "",
+      skuSnapshot: "",
+      nameSnapshot: "",
+      descriptionSnapshot: "",
+      unitSnapshot: "",
       description: "",
       orderedQty: 1,
       unitCostCents: 0,
@@ -285,25 +308,48 @@ export default function PurchaseOrdersPage() {
     }));
   };
 
+  // Open stock item selector for specific line
+  const openSelectorForLine = (lineIndex: number) => {
+    setActiveLineIndex(lineIndex);
+    setIsSelectorOpen(true);
+  };
+
+  // Handle stock item selection from modal
+  const handleStockItemSelect = (item: StockItemSelectorItem, priceCents: number) => {
+    if (activeLineIndex === null) return;
+    
+    setFormData((prev) => {
+      const newLines = [...prev.lines];
+      const line = { ...newLines[activeLineIndex] };
+      
+      line.stockItemId = item._id;
+      line.stockItemName = item.name;
+      // Store snapshots
+      line.skuSnapshot = item.sku;
+      line.nameSnapshot = item.name;
+      line.descriptionSnapshot = item.description || "";
+      line.unitSnapshot = item.unit;
+      line.description = item.description || item.name;
+      line.unitCostCents = priceCents; // Use the default cost price from selector
+      if (line.orderedQty === 0) {
+        line.orderedQty = 1; // Default quantity to 1
+      }
+      
+      // Recalculate subtotal
+      line.subtotalCents = (line.orderedQty || 0) * (line.unitCostCents || 0);
+      newLines[activeLineIndex] = line;
+      return { ...prev, lines: newLines };
+    });
+    
+    setActiveLineIndex(null);
+  };
+
   const updateLineItem = (index: number, field: keyof POLine, value: any) => {
     setFormData((prev) => {
       const newLines = [...prev.lines];
       const line = { ...newLines[index] };
       
-      if (field === "stockItemId") {
-        line.stockItemId = value;
-        // Find the stock item to get its name and default cost
-        const item = stockItems?.find((item) => item._id === value);
-        if (item) {
-          line.stockItemName = item.name;
-          line.description = item.description || item.name;
-          if (line.unitCostCents === 0) {
-            line.unitCostCents = item.pricing?.costPriceCents || 0;
-          }
-        }
-      } else {
-        (line as any)[field] = value;
-      }
+      (line as any)[field] = value;
       
       // Recalculate subtotal
       line.subtotalCents = (line.orderedQty || 0) * (line.unitCostCents || 0);
@@ -586,21 +632,13 @@ export default function PurchaseOrdersPage() {
                         </Button>
                       </div>
 
-                      <Select
-                        value={line.stockItemId}
-                        onValueChange={(value) => updateLineItem(index, "stockItemId", value)}
-                      >
-                        <SelectTrigger className="h-10">
-                          <SelectValue placeholder="Select stock item" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {stockItems?.map((item) => (
-                            <SelectItem key={item._id} value={item._id}>
-                              {item.name} ({item.sku})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <StockItemSelectorTrigger
+                        onClick={() => openSelectorForLine(index)}
+                        hasSelection={!!line.stockItemId}
+                        itemName={line.stockItemName || line.description}
+                        itemSku={(line as any).skuSnapshot}
+                        itemUnit={(line as any).unitSnapshot}
+                      />
 
                       <div className="grid grid-cols-2 gap-2">
                         <div className="space-y-1">
@@ -660,6 +698,16 @@ export default function PurchaseOrdersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Stock Item Selector Modal */}
+      <StockItemSelector
+        open={isSelectorOpen}
+        onOpenChange={setIsSelectorOpen}
+        onSelect={handleStockItemSelect}
+        onCreateNew={() => router.push("/stock-items?new=true")}
+        activeLineIndex={activeLineIndex ?? undefined}
+        mode="purchase"
+      />
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>

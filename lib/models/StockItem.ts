@@ -110,24 +110,32 @@ const StockItemSchema = new Schema<IStockItem>(
 
 StockItemSchema.plugin(softDeletePlugin);
 
-// Indexes
-StockItemSchema.index({ companyId: 1, sku: 1 }, { unique: true });
-StockItemSchema.index({ companyId: 1, "inventory.onHand": 1 });
-StockItemSchema.index({ companyId: 1, "inventory.onHand": 1, "inventory.reorderLevel": 1 });
-StockItemSchema.index({ companyId: 1, isActive: 1 });
-StockItemSchema.index({ companyId: 1, barcode: 1 });
+// Indexes for efficient querying
 
-// Text index for search - supports case-insensitive search on name, sku, description
+// Unique constraint: SKU must be unique per company
+StockItemSchema.index({ companyId: 1, sku: 1 }, { unique: true });
+
+// Compound index for company-scoped name searches and sorting by name
+StockItemSchema.index({ companyId: 1, name: 1 });
+
+// Text index for full-text search across name, sku, description
+// Supports efficient searching across 20k+ items without collection scans
 StockItemSchema.index(
   { name: "text", sku: "text", description: "text" },
   { default_language: "english", weights: { name: 10, sku: 5, description: 1 } }
 );
 
-// Compound index for text search with company filter
-StockItemSchema.index({ companyId: 1, _id: 1 });
-
 // Index for sorting by recently updated (for "recent items" feature)
 StockItemSchema.index({ companyId: 1, updatedAt: -1 });
+
+// Additional utility indexes
+StockItemSchema.index({ companyId: 1, "inventory.onHand": 1 });
+StockItemSchema.index({ companyId: 1, "inventory.onHand": 1, "inventory.reorderLevel": 1 });
+StockItemSchema.index({ companyId: 1, isActive: 1 });
+StockItemSchema.index({ companyId: 1, barcode: 1 });
+
+// Compound index for text search with company filter (optimizes $text + companyId queries)
+StockItemSchema.index({ companyId: 1, _id: 1 });
 
 // Export the model - use existing if available (for hot reloading)
 export const StockItem = 
