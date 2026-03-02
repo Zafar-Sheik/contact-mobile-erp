@@ -9,8 +9,9 @@ import { SESSION_COOKIE } from "./constants";
 // Re-export for backward compatibility
 export { SESSION_COOKIE };
 
-// Prefer env override; default 14 days
-const SESSION_DAYS = Number(process.env.SESSION_DAYS ?? 14);
+// Session configuration
+const SESSION_DAYS = Number(process.env.SESSION_DAYS ?? 7); // Default 7 days
+const INACTIVITY_DAYS = Number(process.env.INACTIVITY_DAYS ?? 1); // Inactivity timeout
 
 function isProd() {
   return process.env.NODE_ENV === "production";
@@ -36,9 +37,20 @@ export type SessionClaims = {
 };
 
 /**
+ * Invalidate all existing sessions for a user (session rotation on login)
+ */
+async function invalidateOldSessions(userId: Types.ObjectId, reason: string) {
+  await Session.updateMany(
+    { userId, revokedAt: null },
+    { $set: { revokedAt: new Date(), revokeReason: reason } }
+  );
+}
+
+/**
  * Create a new session for a user.
- * @param user - User object (from DB, must have _id, companyId, role, firstName, lastName, email)
- * @param request - Request object (optional, for IP/userAgent)
+ * - Rotates session (invalidates old sessions on login)
+ * - Sets secure cookie in production
+ * - Uses sliding expiration on activity
  */
 export async function createSession(
   user: { 
@@ -49,8 +61,16 @@ export async function createSession(
     lastName: string;
     email: string;
   },
-  _request?: Request
+  _request?: Request,
+  options?: { rotateSession?: boolean }
 ) {
+  const rotateSession = options?.rotateSession ?? true;
+  
+  // Rotate session: invalidate old sessions on login
+  if (rotateSession) {
+    await invalidateOldSessions(user._id, "New login");
+  }
+
   const rawToken = generateSessionToken();
 
   const h = await headers();
@@ -71,7 +91,7 @@ export async function createSession(
 
   (await cookies()).set(SESSION_COOKIE, rawToken, {
     httpOnly: true,
-    secure: isProd(),
+    secure: isProd(), // HTTPS only in production
     sameSite: "lax",
     path: "/",
     expires: expiresAt,
@@ -83,6 +103,7 @@ export async function createSession(
 /**
  * Get current session and validate.
  * Returns user data if session is valid, null otherwise.
+ * Updates lastSeen on each request (sliding expiration).
  */
 export async function getSession(): Promise<SessionClaims | null> {
   // Ensure database connection before querying
@@ -103,8 +124,30 @@ export async function getSession(): Promise<SessionClaims | null> {
 
   if (!s) return null;
 
-  // Optional: lastSeen update (write load). Keep it lightweight:
-  await Session.updateOne({ _id: s._id }, { $set: { lastSeenAt: new Date() } });
+  // Sliding expiration: update lastSeen and extend session if close to expiring
+  const now = new Date();
+  const daysUntilExpiry = (s.expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+  
+  // If less than INACTIVITY_DAYS left, extend the session
+  if (daysUntilExpiry < INACTIVITY_DAYS) {
+    const newExpiresAt = new Date(now.getTime() + SESSION_DAYS * 24 * 60 * 60 * 1000);
+    await Session.updateOne(
+      { _id: s._id },
+      { $set: { lastSeenAt: now, expiresAt: newExpiresAt } }
+    );
+    
+    // Also extend cookie
+    (await cookies()).set(SESSION_COOKIE, rawToken, {
+      httpOnly: true,
+      secure: isProd(),
+      sameSite: "lax",
+      path: "/",
+      expires: newExpiresAt,
+    });
+  } else {
+    // Just update lastSeen
+    await Session.updateOne({ _id: s._id }, { $set: { lastSeenAt: now } });
+  }
 
   return { 
     userId: String(s.userId._id), 
