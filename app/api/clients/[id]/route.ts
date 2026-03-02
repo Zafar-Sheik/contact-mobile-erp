@@ -1,16 +1,21 @@
 import { NextResponse } from "next/server";
 import { dbConnect } from "@/lib/db";
 import { Client } from "@/lib/models/Client";
-import { getSessionClaims } from "@/lib/auth/session";
+import { requireAuth, requireRole } from "@/lib/auth/rbac";
+
+export const runtime = "nodejs";
 
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  
+  // Any authenticated user can view client
+  const session = await requireAuth();
+  if (session instanceof NextResponse) return session;
+
   await dbConnect();
-  const session = await getSessionClaims();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const client = await Client.findOne({ _id: id, companyId: session.companyId, isDeleted: false })
     .select("-isDeleted -deletedAt")
@@ -28,9 +33,12 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  
+  // Admin, manager, worker can update
+  const session = await requireRole(["admin", "manager", "worker"]);
+  if (session instanceof NextResponse) return session;
+
   await dbConnect();
-  const session = await getSessionClaims();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
@@ -53,9 +61,12 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  
+  // Only admin can delete
+  const session = await requireRole(["admin"]);
+  if (session instanceof NextResponse) return session;
+
   await dbConnect();
-  const session = await getSessionClaims();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const client = await Client.findOne({ _id: id, companyId: session.companyId, isDeleted: false });
 
