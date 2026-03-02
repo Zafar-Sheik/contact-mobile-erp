@@ -4,7 +4,7 @@
   "devCommand": "npm run dev",
   "installCommand": "npm ci",
   "framework": "nextjs",
-  "regions": ["jnb1"],
+  "regions": ["lhr1"],
   "env": {
     "MONGODB_URI": "@mongodb-uri",
     "JWT_SECRET": "@jwt-secret",
