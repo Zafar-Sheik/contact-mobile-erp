@@ -12,7 +12,7 @@ const SessionSchema = new Schema(
     createdAt: { type: Date, default: Date.now, index: true },
     lastSeenAt: { type: Date, default: Date.now, index: true },
 
-    expiresAt: { type: Date, required: true, index: true },
+    expiresAt: { type: Date, required: true },
 
     revokedAt: { type: Date, default: null, index: true },
     revokeReason: { type: String, default: "", maxlength: 200 },
