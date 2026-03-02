@@ -5,8 +5,6 @@
   "framework": "nextjs",
   "regions": ["lhr1"],
   "env": {
-    "MONGODB_URI": "",
-    "JWT_SECRET": "",
     "COOKIE_NAME": "contact_erp_session"
   },
   "build": {
