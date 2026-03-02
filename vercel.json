@@ -1,14 +1,13 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "npm run build",
   "devCommand": "npm run dev",
   "installCommand": "npm ci",
   "framework": "nextjs",
   "regions": ["lhr1"],
   "env": {
-    "MONGODB_URI": "@mongodb-uri",
-    "JWT_SECRET": "@jwt-secret",
-    "COOKIE_NAME": "@cookie-name"
+    "MONGODB_URI": "",
+    "JWT_SECRET": "",
+    "COOKIE_NAME": "contact_erp_session"
   },
   "build": {
     "env": {

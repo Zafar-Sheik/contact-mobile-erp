@@ -8,14 +8,28 @@
 
 ## Environment Variables
 
-Set these environment variables in your Vercel project dashboard:
+**IMPORTANT**: You must manually set these environment variables in your Vercel project dashboard (Settings → Environment Variables):
 
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `MONGODB_URI` | MongoDB connection string | Yes |
-| `JWT_SECRET` | Secret key for JWT tokens (min 32 chars) | Yes |
-| `COOKIE_NAME` | Name of the session cookie | Yes |
-| `NEXT_PUBLIC_APP_NAME` | Application name shown in UI | No |
+| Variable | Description | Required | Example |
+|----------|-------------|----------|---------|
+| `MONGODB_URI` | MongoDB connection string | Yes | `mongodb+srv://user:pass@cluster.mongodb.net/db` |
+| `JWT_SECRET` | Secret key for JWT tokens (min 32 chars) | Yes | `your-super-secret-jwt-key-min-32-chars` |
+| `COOKIE_NAME` | Name of the session cookie | Yes | `contact_erp_session` |
+| `NEXT_PUBLIC_APP_NAME` | Application name shown in UI | No | `Contact Mobile ERP` |
+
+### How to Set Environment Variables in Vercel:
+
+1. Go to your Vercel Dashboard
+2. Select your project
+3. Go to **Settings** → **Environment Variables**
+4. Add each variable:
+   - **Key**: Variable name (e.g., `MONGODB_URI`)
+   - **Value**: The actual value
+   - **Environment**: Select Production (and optionally Preview/Development)
+5. Click **Save**
+6. Redeploy your project for changes to take effect
+
+> ⚠️ **Note**: Do not commit sensitive values like `MONGODB_URI` or `JWT_SECRET` to your repository. Use the Vercel dashboard to set them securely.
 
 ## Deployment Steps
 
