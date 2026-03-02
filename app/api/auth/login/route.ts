@@ -4,6 +4,8 @@ import { User } from "@/lib/models/User";
 import { verifyPassword } from "@/lib/auth/password";
 import { createSession } from "@/lib/auth/session";
 
+export const runtime = "nodejs";
+
 function badRequest(message: string) {
   return NextResponse.json({ error: message }, { status: 400 });
 }
@@ -42,6 +44,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
   }
 
+  // Create session (sets HTTP-only cookie automatically)
   await createSession({
     _id: user._id,
     companyId: user.companyId,
@@ -51,20 +54,13 @@ export async function POST(req: Request) {
     email: user.email,
   });
 
-  // Get callback URL or default to dashboard
-  const callbackUrl = req.headers.get("x-callback-url") || "/";
-
-  // Return success with redirect URL
+  // Return success - token is in HTTP-only cookie, not returned
   return NextResponse.json({
-    ok: true,
+    success: true,
     user: {
       id: String(user._id),
-      companyId: String(user.companyId),
-      firstName: user.firstName,
-      lastName: user.lastName,
-      email: user.email,
+      name: `${user.firstName} ${user.lastName}`,
       role: user.role,
     },
-    callbackUrl,
   });
 }
