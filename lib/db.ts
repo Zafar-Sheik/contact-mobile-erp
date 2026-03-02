@@ -20,15 +20,26 @@ const cached = g.mongoose ?? (g.mongoose = { conn: null, promise: null });
 export async function dbConnect() {
   // Return early during build time when MONGODB_URI is not available
   if (isBuildTime || !MONGODB_URI) {
+    console.log("[db] Skipping connection during build time");
     return null;
   }
 
-  if (cached.conn) return cached.conn;
+  if (cached.conn) {
+    console.log("[db] Using existing connection");
+    return cached.conn;
+  }
 
   if (!cached.promise) {
+    console.log("[db] Creating new connection to MongoDB...");
     cached.promise = mongoose.connect(MONGODB_URI, { bufferCommands: false });
   }
 
-  cached.conn = await cached.promise;
-  return cached.conn;
+  try {
+    cached.conn = await cached.promise;
+    console.log("[db] Connected to MongoDB successfully");
+    return cached.conn;
+  } catch (error) {
+    console.error("[db] MongoDB connection error:", error);
+    throw error;
+  }
 }
