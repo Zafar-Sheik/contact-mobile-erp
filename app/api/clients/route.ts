@@ -3,6 +3,8 @@ import { dbConnect } from "@/lib/db";
 import { Client } from "@/lib/models/Client";
 import { getSessionClaims } from "@/lib/auth/session";
 
+export const runtime = "nodejs";
+
 export async function GET() {
   await dbConnect();
   const session = await getSessionClaims();

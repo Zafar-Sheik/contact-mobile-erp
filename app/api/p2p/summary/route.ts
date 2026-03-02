@@ -1,13 +1,9 @@
 import { NextResponse } from "next/server";
 import mongoose from "mongoose";
-
-// MongoDB connection
-const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/contact-erp";
+import { dbConnect } from "@/lib/db";
 
 async function getDB() {
-  if (mongoose.connection.readyState === 0) {
-    await mongoose.connect(MONGODB_URI);
-  }
+  await dbConnect();
   return mongoose.connection.db;
 }
 
