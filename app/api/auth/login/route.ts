@@ -16,16 +16,16 @@ function badRequest(message: string) {
   return NextResponse.json({ error: message }, { status: 400 });
 }
 
-function getClientIp() {
-  const h = headers();
-  const xff = (h as any).get("x-forwarded-for");
+async function getClientIp() {
+  const h = await headers();
+  const xff = h.get("x-forwarded-for");
   if (xff) return xff.split(",")[0]?.trim() ?? "";
-  return (h as any).get("x-real-ip") ?? "";
+  return h.get("x-real-ip") ?? "";
 }
 
 export async function POST(req: Request) {
   // Rate limit by IP
-  const ip = getClientIp();
+  const ip = await getClientIp();
   if (isRateLimited(`login:${ip}`, LOGIN_RATE_LIMIT, LOGIN_RATE_WINDOW)) {
     return NextResponse.json(
       { error: "Too many login attempts. Please try again later." },
