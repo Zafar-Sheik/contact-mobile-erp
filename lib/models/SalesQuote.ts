@@ -1,5 +1,66 @@
-import { Schema, model } from "mongoose";
+import { Schema, model, Document, Types } from "mongoose";
 import { addBaseFields, baseOptions, softDeletePlugin } from "./_base";
+
+// Type definitions
+interface SalesQuoteLine {
+  lineNo: number;
+  stockItemId: Types.ObjectId | null;
+  skuSnapshot: string;
+  nameSnapshot: string;
+  descriptionSnapshot: string;
+  unitSnapshot: string;
+  qty: number;
+  unitPriceCents: number;
+  discountCents: number;
+  taxable: boolean;
+  lineTotalCents: number;
+}
+
+interface ClientSnapshot {
+  name: string;
+  email: string;
+  phone: string;
+  address: {
+    line1: string;
+    line2: string;
+    city: string;
+    provinceState: string;
+    country: string;
+    postalCode: string;
+  };
+}
+
+interface QuoteTotals {
+  subTotalCents: number;
+  vatTotalCents: number;
+  totalCents: number;
+}
+
+export interface ISalesQuote extends Document {
+  _id: Types.ObjectId;
+  companyId: Types.ObjectId;
+  createdBy: Types.ObjectId | string;
+  updatedBy: Types.ObjectId | string;
+  quoteNumber: string;
+  clientId: Types.ObjectId;
+  clientSnapshot: ClientSnapshot;
+  status: "draft" | "sent" | "accepted" | "rejected" | "expired";
+  lines: SalesQuoteLine[];
+  totals: QuoteTotals;
+  vatMode: "exclusive" | "inclusive" | "none";
+  vatRateBps: number;
+  validUntil: Date | null;
+  notes: string;
+  sentAt: Date | null;
+  acceptedAt: Date | null;
+  rejectedAt: Date | null;
+  expiredAt: Date | null;
+  isDeleted: boolean;
+  deletedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+  softDelete: (userId: Types.ObjectId | string) => Promise<void>;
+}
 
 /**
  * SalesQuoteLine - Line item for a sales quote
@@ -109,6 +170,6 @@ SalesQuoteSchema.index({ companyId: 1, quoteNumber: 1 }, { unique: true });
 SalesQuoteSchema.index({ companyId: 1, clientId: 1, status: 1 });
 SalesQuoteSchema.index({ companyId: 1, status: 1, createdAt: -1 });
 
-const SalesQuote = model("SalesQuote", SalesQuoteSchema);
+const SalesQuote = model<ISalesQuote>("SalesQuote", SalesQuoteSchema);
 
 export { SalesQuote, SalesQuoteSchema };

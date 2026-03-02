@@ -1,5 +1,70 @@
-import { Schema, model } from "mongoose";
+import { Schema, model, Document, Types } from "mongoose";
 import { addBaseFields, baseOptions, softDeletePlugin } from "./_base";
+
+// Type definitions
+interface SalesInvoiceLine {
+  lineNo: number;
+  stockItemId: Types.ObjectId | null;
+  skuSnapshot: string;
+  nameSnapshot: string;
+  descriptionSnapshot: string;
+  unitSnapshot: string;
+  qty: number;
+  unitPriceCents: number;
+  discountCents: number;
+  taxable: boolean;
+  lineTotalCents: number;
+}
+
+interface ClientSnapshot {
+  name: string;
+  email: string;
+  phone: string;
+  address: {
+    line1: string;
+    line2: string;
+    city: string;
+    provinceState: string;
+    country: string;
+    postalCode: string;
+  };
+}
+
+interface InvoiceTotals {
+  subTotalCents: number;
+  vatTotalCents: number;
+  totalCents: number;
+}
+
+export interface ISalesInvoice extends Document {
+  _id: Types.ObjectId;
+  companyId: Types.ObjectId;
+  createdBy: Types.ObjectId | string;
+  updatedBy: Types.ObjectId | string;
+  invoiceNumber: string;
+  clientId: Types.ObjectId;
+  clientSnapshot: ClientSnapshot;
+  status: "draft" | "issued" | "partially_paid" | "paid" | "overdue" | "cancelled";
+  lines: SalesInvoiceLine[];
+  totals: InvoiceTotals;
+  amountPaidCents: number;
+  balanceDueCents: number;
+  sourceQuoteId: Types.ObjectId | null;
+  vatMode: "exclusive" | "inclusive" | "none";
+  vatRateBps: number;
+  issueDate: Date;
+  dueDate: Date;
+  notes: string;
+  issuedAt: Date | null;
+  paidAt: Date | null;
+  cancelledAt: Date | null;
+  overdueAt: Date | null;
+  isDeleted: boolean;
+  deletedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+  softDelete: (userId: Types.ObjectId | string) => Promise<void>;
+}
 
 /**
  * SalesInvoiceLine - Line item for a sales invoice
@@ -118,6 +183,6 @@ SalesInvoiceSchema.index({ companyId: 1, clientId: 1, status: 1 });
 SalesInvoiceSchema.index({ companyId: 1, status: 1, issueDate: -1 });
 SalesInvoiceSchema.index({ companyId: 1, dueDate: 1, status: 1 });
 
-const SalesInvoice = model("SalesInvoice", SalesInvoiceSchema);
+const SalesInvoice = model<ISalesInvoice>("SalesInvoice", SalesInvoiceSchema);
 
 export { SalesInvoice, SalesInvoiceSchema };
