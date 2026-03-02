@@ -6,6 +6,7 @@ const PUBLIC_API = new Set([
   "/api/auth/login",
   "/api/auth/signup",
   "/api/auth/logout",
+  "/api/auth/me",
   "/api/debug",
 ]);
 
