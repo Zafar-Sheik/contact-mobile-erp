@@ -100,7 +100,14 @@ export async function POST(req: Request) {
     { $set: { createdBy: user._id, updatedBy: user._id } },
   );
 
-  await createSession({ userId: user._id, companyId: company._id });
+  await createSession({
+    _id: user._id,
+    companyId: company._id,
+    role: user.role,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    email: user.email,
+  });
 
   // Get callback URL or default to dashboard
   const callbackUrl = req.headers.get("x-callback-url") || "/";

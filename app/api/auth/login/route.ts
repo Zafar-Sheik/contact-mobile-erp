@@ -42,7 +42,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
   }
 
-  await createSession({ userId: user._id, companyId: user.companyId });
+  await createSession({
+    _id: user._id,
+    companyId: user.companyId,
+    role: user.role,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    email: user.email,
+  });
 
   // Get callback URL or default to dashboard
   const callbackUrl = req.headers.get("x-callback-url") || "/";
