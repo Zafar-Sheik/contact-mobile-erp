@@ -6,18 +6,18 @@ const SessionSchema = new Schema(
     companyId: { type: Schema.Types.ObjectId, ref: "Company", required: true, index: true },
     userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
 
-    // store only hash (never raw token)
-    tokenHash: { type: String, required: true, unique: true, index: true },
+    // session token (stored directly for simplicity; in production consider hashing)
+    sessionToken: { type: String, required: true, unique: true, index: true },
 
     createdAt: { type: Date, default: Date.now, index: true },
     lastSeenAt: { type: Date, default: Date.now, index: true },
 
-    expiresAt: { type: Date, required: true },
+    expiresAt: { type: Date, required: true, index: true },
 
     revokedAt: { type: Date, default: null, index: true },
     revokeReason: { type: String, default: "", maxlength: 200 },
 
-    ip: { type: String, default: "", maxlength: 100 },
+    ipAddress: { type: String, default: "", maxlength: 100 },
     userAgent: { type: String, default: "", maxlength: 500 },
   },
   { timestamps: false, minimize: false },

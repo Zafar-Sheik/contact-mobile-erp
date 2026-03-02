@@ -13,7 +13,6 @@
 | Variable | Description | Required | Example |
 |----------|-------------|----------|---------|
 | `MONGODB_URI` | MongoDB connection string | Yes | `mongodb+srv://user:pass@cluster.mongodb.net/db` |
-| `JWT_SECRET` | Secret key for JWT tokens (min 32 chars) | Yes | `your-super-secret-jwt-key-min-32-chars` |
 | `COOKIE_NAME` | Name of the session cookie | Yes | `contact_erp_session` |
 | `NEXT_PUBLIC_APP_NAME` | Application name shown in UI | No | `Contact Mobile ERP` |
 
@@ -29,7 +28,7 @@
 5. Click **Save**
 6. Redeploy your project for changes to take effect
 
-> ⚠️ **Note**: Do not commit sensitive values like `MONGODB_URI` or `JWT_SECRET` to your repository. Use the Vercel dashboard to set them securely.
+> ⚠️ **Note**: Do not commit sensitive values like `MONGODB_URI` to your repository. Use the Vercel dashboard to set them securely.
 
 ## Deployment Steps
 

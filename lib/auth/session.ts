@@ -26,7 +26,7 @@ export function generateSessionToken() {
 }
 
 export function hashSessionToken(rawToken: string) {
-  return crypto.createHash("sha256").update(rawToken).digest("hex");
+  return rawToken; // Store token directly (or use hash if preferred)
 }
 
 export type SessionClaims = {
@@ -52,9 +52,9 @@ export async function createSession(input: {
   await Session.create({
     userId: input.userId,
     companyId: input.companyId,
-    tokenHash,
+    sessionToken: rawToken,
     expiresAt,
-    ip,
+    ipAddress: ip,
     userAgent,
   });
 
@@ -77,10 +77,8 @@ export async function getSessionClaims(): Promise<SessionClaims | null> {
   const rawToken = jar.get(SESSION_COOKIE)?.value;
   if (!rawToken) return null;
 
-  const tokenHash = hashSessionToken(rawToken);
-
   const s = await Session.findOne({
-    tokenHash,
+    sessionToken: rawToken,
     revokedAt: null,
     expiresAt: { $gt: new Date() },
   }).select({ userId: 1, companyId: 1 });
@@ -104,9 +102,8 @@ export async function destroySession(reason = "logout") {
   const rawToken = jar.get(SESSION_COOKIE)?.value;
 
   if (rawToken) {
-    const tokenHash = hashSessionToken(rawToken);
     await Session.updateOne(
-      { tokenHash, revokedAt: null },
+      { sessionToken: rawToken, revokedAt: null },
       { $set: { revokedAt: new Date(), revokeReason: reason } },
     );
   }
