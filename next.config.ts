@@ -7,6 +7,12 @@ const nextConfig: NextConfig = {
   // Image optimization settings
   images: {
     unoptimized: true,
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**',
+      },
+    ],
   },
 
   // Environment variables that should be available at build time
