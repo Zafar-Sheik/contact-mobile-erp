@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, ArrowRight, Truck, Check } from "lucide-react";
+import { Loader2, ArrowRight, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -96,11 +96,8 @@ export default function SignupPage() {
       <div className="w-full max-w-lg mx-auto">
         {/* Logo/Brand */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary mb-4">
-            <Truck className="h-8 w-8 text-primary-foreground" />
-          </div>
           <h1 className="text-2xl font-bold">MR Power</h1>
-          <p className="text-muted-foreground mt-1">Create your account</p>
+          <p className="text-muted-foreground mt-1">Contact Mobile ERP System</p>
         </div>
 
         <Card className="shadow-lg">

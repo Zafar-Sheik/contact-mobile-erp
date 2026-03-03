@@ -37,6 +37,24 @@ export type SessionClaims = {
 };
 
 /**
+ * Drop old tokenHash index if exists (migration fix)
+ */
+async function fixOldIndex() {
+  try {
+    const sessionModel = Session;
+    const collection = sessionModel.collection;
+    const indexes = await collection.indexes();
+    const hasOldIndex = indexes.some((idx: any) => idx.key && idx.key.tokenHash === 1);
+    if (hasOldIndex) {
+      console.log("[Session] Dropping old tokenHash index...");
+      await collection.dropIndex("tokenHash_1").catch(() => {});
+    }
+  } catch (e) {
+    // Ignore
+  }
+}
+
+/**
  * Invalidate all existing sessions for a user (session rotation on login)
  */
 async function invalidateOldSessions(userId: Types.ObjectId, reason: string) {
@@ -64,6 +82,9 @@ export async function createSession(
   _request?: Request,
   options?: { rotateSession?: boolean }
 ) {
+  // Fix old index if exists
+  await fixOldIndex();
+  
   const rotateSession = options?.rotateSession ?? true;
   
   // Rotate session: invalidate old sessions on login

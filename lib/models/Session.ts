@@ -28,5 +28,20 @@ SessionSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 SessionSchema.index({ companyId: 1, userId: 1, revokedAt: 1 });
 
+// Auto-fix: Drop old tokenHash index if exists (for migration from old schema)
+SessionSchema.on("index" as any, async function(this: any) {
+  try {
+    const collection = this.collection;
+    const indexes = await collection.indexes();
+    const hasOldIndex = indexes.some((idx: any) => idx.key && idx.key.tokenHash === 1);
+    if (hasOldIndex) {
+      console.log("[Session] Dropping old tokenHash index...");
+      await collection.dropIndex("tokenHash_1").catch(() => {});
+    }
+  } catch (e) {
+    // Ignore errors during index creation
+  }
+});
+
 export const Session = 
   models.Session || model("Session", SessionSchema);
