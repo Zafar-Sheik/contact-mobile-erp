@@ -81,6 +81,30 @@ export async function POST(req: Request) {
   let vatTotalCents = 0;
   let discountTotalCents = 0;
 
+  // Validate line items have non-negative values
+  if (body.lines && Array.isArray(body.lines)) {
+    for (const line of body.lines) {
+      if ((line.receivedQty || 0) < 0) {
+        return NextResponse.json(
+          { error: "Received quantity cannot be negative" },
+          { status: 400 }
+        );
+      }
+      if ((line.unitCostCents || 0) < 0) {
+        return NextResponse.json(
+          { error: "Unit cost cannot be negative" },
+          { status: 400 }
+        );
+      }
+      if ((line.discountValue || 0) < 0) {
+        return NextResponse.json(
+          { error: "Discount value cannot be negative" },
+          { status: 400 }
+        );
+      }
+    }
+  }
+
   const processedLines = body.lines?.map((line: any, index: number) => {
     const receivedQty = line.receivedQty || 0;
     const unitCostCents = line.unitCostCents || 0;

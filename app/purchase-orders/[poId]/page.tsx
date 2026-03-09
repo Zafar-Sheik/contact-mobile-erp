@@ -15,6 +15,7 @@ import {
   ShoppingCart,
   Receipt,
   Send,
+  Printer,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,6 +38,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { DocumentActions } from "@/components/erp/document-generator";
 
 // Types
 interface Supplier {
@@ -464,6 +466,67 @@ export default function PODetailPage({ params }: { params: Promise<{ poId: strin
       {/* Sticky Bottom Action Bar */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4 shadow-lg">
         <div className="flex gap-2 max-w-md mx-auto">
+          <Button 
+            variant="outline" 
+            className="h-12"
+            onClick={() => {
+              const printWindow = window.open('', '_blank');
+              if (printWindow) {
+                printWindow.document.write(`
+                  <html>
+                    <head>
+                      <title>Purchase Order ${po.poNumber}</title>
+                      <style>
+                        body { font-family: Arial, sans-serif; padding: 20px; }
+                        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+                        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                        th { background-color: #f5f5f5; }
+                        .header { text-align: center; margin-bottom: 20px; }
+                        .total { font-weight: bold; font-size: 1.2em; }
+                      </style>
+                    </head>
+                    <body>
+                      <div class="header">
+                        <h1>Purchase Order</h1>
+                        <p><strong>PO Number:</strong> ${po.poNumber}</p>
+                        <p><strong>Date:</strong> ${new Date(po.date).toLocaleDateString()}</p>
+                        <p><strong>Supplier:</strong> ${supplierName}</p>
+                      </div>
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Line</th>
+                            <th>Description</th>
+                            <th>Ordered</th>
+                            <th>Received</th>
+                            <th>Billed</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          ${po.lines.map(line => `
+                            <tr>
+                              <td>${line.lineNo}</td>
+                              <td>${line.description}</td>
+                              <td>${line.orderedQty}</td>
+                              <td>${line.receivedQty}</td>
+                              <td>${line.billedQty}</td>
+                            </tr>
+                          `).join('')}
+                        </tbody>
+                      </table>
+                      <p class="total">Total: ${formatCurrency(po.total)}</p>
+                      ${po.notes ? `<p><strong>Notes:</strong> ${po.notes}</p>` : ''}
+                    </body>
+                  </html>
+                `);
+                printWindow.document.close();
+                printWindow.print();
+              }
+            }}
+          >
+            <Printer className="h-4 w-4 mr-2" />
+            Print
+          </Button>
           {canSubmit && (
             <Button 
               variant="outline" 

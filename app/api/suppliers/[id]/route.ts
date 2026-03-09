@@ -34,8 +34,8 @@ export async function PUT(
 ) {
   const { id } = await params;
   
-  // Admin, manager, worker can update
-  const session = await requireRole(["admin", "manager", "worker"]);
+  // Admin, manager, worker, owner can update
+  const session = await requireRole(["admin", "manager", "worker", "owner"]);
   if (session instanceof NextResponse) return session;
 
   await dbConnect();
@@ -62,8 +62,8 @@ export async function DELETE(
 ) {
   const { id } = await params;
   
-  // Only admin can delete
-  const session = await requireRole(["admin"]);
+  // Only admin, owner can delete
+  const session = await requireRole(["admin", "owner"]);
   if (session instanceof NextResponse) return session;
 
   await dbConnect();

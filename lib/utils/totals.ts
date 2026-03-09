@@ -11,9 +11,16 @@ export interface LineItem {
   discountCents: number;
   taxable: boolean;
   lineTotalCents?: number;
+  lineItemType?: 'stock_item' | 'labour_cost' | 'custom';
 }
 
 export interface DocumentTotals {
+  // Breakdown by item type
+  stockTotalCents: number;
+  labourTotalCents: number;
+  customTotalCents: number;
+  
+  // Combined totals
   subTotalCents: number;
   vatTotalCents: number;
   totalCents: number;
@@ -48,6 +55,7 @@ export function calculateLineTotals<T extends LineItem>(
 
 /**
  * Calculate document totals (subtotal, VAT, total) based on lines and VAT settings
+ * Also returns breakdown by item type (stock, labour, custom)
  * 
  * @param lines - Array of line items
  * @param vatRateBps - VAT rate in basis points (1500 = 15%)
@@ -58,12 +66,26 @@ export function calculateDocumentTotals(
   vatRateBps: number = 1500,
   vatMode: VatMode = "exclusive"
 ): DocumentTotals {
-  // Calculate subtotal from line totals
+  // Calculate subtotal from line totals (broken down by type)
+  let stockTotalCents = 0;
+  let labourTotalCents = 0;
+  let customTotalCents = 0;
   let subTotalCents = 0;
   let vatTotalCents = 0;
   
   for (const line of lines) {
     const lineTotal = calculateLineTotal(line.qty, line.unitPriceCents, line.discountCents);
+    const itemType = line.lineItemType || 'custom';
+    
+    // Accumulate by type
+    if (itemType === 'stock_item') {
+      stockTotalCents += lineTotal;
+    } else if (itemType === 'labour_cost') {
+      labourTotalCents += lineTotal;
+    } else {
+      customTotalCents += lineTotal;
+    }
+    
     subTotalCents += lineTotal;
     
     // Calculate VAT for taxable lines
@@ -92,6 +114,9 @@ export function calculateDocumentTotals(
   }
   
   return {
+    stockTotalCents,
+    labourTotalCents,
+    customTotalCents,
     subTotalCents,
     vatTotalCents,
     totalCents,

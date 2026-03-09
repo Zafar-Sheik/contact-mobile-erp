@@ -231,6 +231,14 @@ export default function StockItemsPage() {
           signal: abortControllerRef.current.signal,
         });
 
+        // Handle 401 Unauthorized - redirect to login
+        if (response.status === 401) {
+          if (typeof window !== "undefined") {
+            window.location.href = "/login";
+          }
+          return;
+        }
+
         if (!response.ok) {
           throw new Error("Failed to fetch stock items");
         }

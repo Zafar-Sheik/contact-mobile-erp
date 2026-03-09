@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { dbConnect } from "@/lib/db";
 import { GRV } from "@/lib/models/GRV";
+import { SupplierBill } from "@/lib/models/SupplierBill";
 import { InventoryMovement } from "@/lib/models/InventoryMovement";
 import { StockItem } from "@/lib/models/StockItem";
 import { getSessionClaims } from "@/lib/auth/session";
@@ -22,7 +23,21 @@ export async function GET(
     return NextResponse.json({ error: "GRV not found" }, { status: 404 });
   }
 
-  return NextResponse.json({ data: grv });
+  // Check if there's an existing supplier bill for this GRV
+  const supplierBill = await SupplierBill.findOne({
+    grvIds: grv._id,
+    isDeleted: false,
+    status: { $nin: ["Voided"] },
+  }).select("_id billNumber").lean();
+
+  // Add supplierBillId to the response if found
+  const grvWithSupplierBill = {
+    ...grv,
+    supplierBillId: supplierBill?._id || null,
+    supplierBillNumber: supplierBill?.billNumber || null,
+  };
+
+  return NextResponse.json({ data: grvWithSupplierBill });
 }
 
 export async function PUT(
@@ -37,14 +52,18 @@ export async function PUT(
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
 
-  // Check if GRV exists and is in Draft status
+  // Check if GRV exists and can be edited
   const existingGRV = await GRV.findOne({ _id: id, companyId: session.companyId, isDeleted: false });
   if (!existingGRV) {
     return NextResponse.json({ error: "GRV not found" }, { status: 404 });
   }
 
-  if (existingGRV.status !== "DRAFT") {
-    return NextResponse.json({ error: "Cannot edit a Posted or Cancelled GRV" }, { status: 400 });
+  // GRV cannot be edited if it has already been converted to an invoice
+  if (existingGRV.invoiceId) {
+    return NextResponse.json({ 
+      error: "Cannot edit a GRV that has been converted to an invoice.",
+      invoiceId: existingGRV.invoiceId
+    }, { status: 400 });
   }
 
   // Recalculate totals if lines provided

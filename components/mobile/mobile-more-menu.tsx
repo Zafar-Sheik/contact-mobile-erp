@@ -1,269 +1,229 @@
-"use client"
-
 import * as React from "react"
+import { cn } from "@/lib/utils"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { 
+import {
   LayoutDashboard,
-  Package,
+  FileText,
+  ClipboardList,
   Users,
   Truck,
+  Package,
+  Settings,
   Fuel,
-  ClipboardList,
-  FileText,
   Receipt,
-  DollarSign,
-  ShoppingCart,
+  Folder,
   Building2,
-  Activity,
-  MapPin,
-  X,
-  Upload,
-  LucideIcon,
+  ShoppingCart,
+  DollarSign,
+  Car,
   LogOut,
 } from "lucide-react"
-import { cn } from "@/lib/utils"
 
-interface MoreMenuItem {
-  name: string
-  href: string
-  icon: LucideIcon
+export interface MoreMenuItem {
+  /**
+   * Item label
+   */
+  label: string
+  /**
+   * Item icon
+   */
+  icon?: React.ReactNode
+  /**
+   * Item action
+   */
+  action?: () => void
+  /**
+   * Item href for navigation
+   */
+  href?: string
+  /**
+   * Whether the item is destructive
+   */
+  destructive?: boolean
+  /**
+   * Disabled state
+   */
+  disabled?: boolean
 }
-
-interface MoreMenuCategory {
-  name: string
-  items: MoreMenuItem[]
-}
-
-const moreMenuCategories: MoreMenuCategory[] = [
-  {
-    name: "Inventory",
-    items: [
-      { name: "Stock Items", href: "/stock-items", icon: Package },
-      { name: "Import Items", href: "/stock-items/import", icon: Upload },
-      { name: "Sites", href: "/sites", icon: MapPin },
-      { name: "GRVs", href: "/grvs", icon: FileText },
-      { name: "Movements", href: "/inventory-movements", icon: Activity },
-    ],
-  },
-  {
-    name: "Vehicles",
-    items: [
-      { name: "Vehicles", href: "/vehicles", icon: Truck },
-      { name: "Fuel Logs", href: "/fuel-logs", icon: Fuel },
-    ],
-  },
-  {
-    name: "Sales",
-    items: [
-      { name: "Clients", href: "/clients", icon: Users },
-      { name: "Quotes", href: "/quotes", icon: FileText },
-      { name: "Invoices", href: "/invoices", icon: Receipt },
-    ],
-  },
-  {
-    name: "Purchases",
-    items: [
-      { name: "Suppliers", href: "/suppliers", icon: Building2 },
-      { name: "Supplier Bills", href: "/supplier-bills", icon: Receipt },
-      { name: "Purchase Orders", href: "/purchase-orders", icon: ShoppingCart },
-      { name: "Supplier Payments", href: "/supplier-payments", icon: DollarSign },
-    ],
-  },
-  {
-    name: "Workflow",
-    items: [
-      { name: "Workflow Tasks", href: "/workflow-tasks", icon: ClipboardList },
-    ],
-  },
-]
 
 export interface MobileMoreMenuProps {
-  open: boolean
-  onClose: () => void
+  /**
+   * Whether the menu is open
+   */
+  open?: boolean
+  /**
+   * Callback when menu should close
+   */
+  onClose?: () => void
+  /**
+   * Menu items
+   */
+  items?: MoreMenuItem[]
+  /**
+   * Custom trigger element
+   */
+  trigger?: React.ReactNode
+  /**
+   * Custom className
+   */
+  className?: string
+  /**
+   * Menu button label
+   */
+  label?: string
 }
 
-export function MobileMoreMenu({ open, onClose }: MobileMoreMenuProps) {
-  const router = useRouter()
-  const [isVisible, setIsVisible] = React.useState(false)
-  const menuRef = React.useRef<HTMLDivElement>(null)
-
-  // Handle logout
-  const handleLogout = async () => {
-    try {
-      await fetch("/api/auth/logout", { method: "POST" })
-    } catch (e) {
-      // Continue even if API fails
-    }
-    onClose()
-    router.push("/login")
-  }
-
-  // Handle open/close animations
-  React.useEffect(() => {
-    if (open) {
-      setIsVisible(true)
-      document.body.style.overflow = "hidden"
-    } else {
-      const timer = setTimeout(() => setIsVisible(false), 300)
-      document.body.style.overflow = ""
-      return () => clearTimeout(timer)
-    }
-  }, [open])
-
-  // Close on route change
-  React.useEffect(() => {
-    const handleRouteChange = () => {
-      if (open) {
-        onClose()
-      }
-    }
-    
-    // Listen for navigation
-    const originalPush = router.push
-    router.push = (href: string) => {
-      handleRouteChange()
-      return originalPush(href)
-    }
-    
-    return () => {
-      router.push = originalPush
-    }
-  }, [open, onClose, router])
-
-  // Close on escape key
-  React.useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && open) {
-        onClose()
-      }
-    }
-    document.addEventListener("keydown", handleEscape)
-    return () => document.removeEventListener("keydown", handleEscape)
-  }, [open, onClose])
-
-  if (!isVisible) return null
-
-  return (
-    <>
-      {/* Backdrop */}
-      <div 
-        className={cn(
-          "fixed inset-0 z-50 bg-black/50 backdrop-blur-sm",
-          "transition-opacity duration-300",
-          open ? "opacity-100" : "opacity-0"
-        )}
-        onClick={onClose}
-        aria-hidden="true"
-      />
-      
-      {/* Bottom sheet */}
-      <div
-        ref={menuRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label="More menu"
-        className={cn(
-          "fixed inset-x-0 bottom-0 z-50 max-h-[85vh] overflow-hidden",
-          "rounded-t-2xl bg-background",
-          "border-t border-border shadow-xl",
-          "transition-transform duration-300 ease-out",
-          "pb-safe pt-4",
-          open ? "translate-y-0" : "translate-y-full"
-        )}
-      >
-        {/* Handle bar */}
-        <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-muted-foreground/30" />
-        
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 pb-4">
-          <h2 className="text-lg font-semibold">More</h2>
-          <button
-            onClick={onClose}
-            className={cn(
-              "flex h-10 w-10 items-center justify-center",
-              "rounded-full bg-muted hover:bg-muted/80",
-              "transition-colors duration-200"
-            )}
-            aria-label="Close menu"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-        
-        {/* Content */}
-        <div className="overflow-y-auto px-4 pb-6" style={{ maxHeight: "calc(85vh - 80px)" }}>
-          <div className="grid grid-cols-3 gap-3">
-            {moreMenuCategories.flatMap((category) =>
-              category.items.map((item) => {
-                const Icon = item.icon
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={onClose}
-                    className={cn(
-                      "flex flex-col items-center justify-center",
-                      "gap-2 rounded-xl border border-border",
-                      "bg-card p-4 min-h-[90px]",
-                      "hover:bg-accent hover:border-accent",
-                      "active:scale-95 transition-all duration-150"
-                    )}
-                  >
-                    <Icon className="h-6 w-6 text-primary" strokeWidth={1.5} />
-                    <span className="text-center text-xs font-medium text-foreground">
-                      {item.name}
-                    </span>
-                  </Link>
-                )
-              })
-            )}
-          </div>
-          
-          {/* Dashboard shortcut */}
-          <Link
-            href="/"
-            onClick={onClose}
-            className={cn(
-              "mt-4 flex items-center justify-center gap-2",
-              "rounded-xl border border-border",
-              "bg-card p-4",
-              "hover:bg-accent hover:border-accent",
-              "active:scale-95 transition-all duration-150"
-            )}
-          >
-            <LayoutDashboard className="h-5 w-5 text-primary" strokeWidth={1.5} />
-            <span className="font-medium">Back to Dashboard</span>
-          </Link>
-          
-          {/* Logout button */}
-          <button
-            onClick={handleLogout}
-            className={cn(
-              "mt-3 flex items-center justify-center gap-2",
-              "rounded-xl border border-destructive/30",
-              "bg-destructive/10 p-4",
-              "hover:bg-destructive/20",
-              "active:scale-95 transition-all duration-150",
-              "w-full"
-            )}
-          >
-            <LogOut className="h-5 w-5 text-destructive" strokeWidth={1.5} />
-            <span className="font-medium text-destructive">Log Out</span>
-          </button>
-        </div>
-      </div>
-    </>
-  )
-}
-
-// Hook to manage the more menu state
 export function useMobileMoreMenu() {
   const [isOpen, setIsOpen] = React.useState(false)
 
   const open = React.useCallback(() => setIsOpen(true), [])
   const close = React.useCallback(() => setIsOpen(false), [])
-  const toggle = React.useCallback(() => setIsOpen((prev) => !prev), [])
 
-  return { isOpen, open, close, toggle }
+  return { isOpen, open, close }
+}
+
+// Default navigation items for the mobile menu
+const defaultNavItems: MoreMenuItem[] = [
+  { label: "Dashboard", href: "/", icon: <LayoutDashboard className="w-6 h-6" /> },
+  { label: "Invoices", href: "/invoices", icon: <FileText className="w-6 h-6" /> },
+  { label: "Quotes", href: "/quotes", icon: <ClipboardList className="w-6 h-6" /> },
+  { label: "Clients", href: "/clients", icon: <Users className="w-6 h-6" /> },
+  { label: "Suppliers", href: "/suppliers", icon: <Truck className="w-6 h-6" /> },
+  { label: "Stock", href: "/stock-items", icon: <Package className="w-6 h-6" /> },
+  { label: "GRVs", href: "/grvs", icon: <Receipt className="w-6 h-6" /> },
+  { label: "Orders", href: "/purchase-orders", icon: <ShoppingCart className="w-6 h-6" /> },
+  { label: "Bills", href: "/supplier-bills", icon: <Folder className="w-6 h-6" /> },
+  { label: "Payments", href: "/supplier-payments", icon: <DollarSign className="w-6 h-6" /> },
+  { label: "Vehicles", href: "/vehicles", icon: <Car className="w-6 h-6" /> },
+  { label: "Fuel", href: "/fuel-logs", icon: <Fuel className="w-6 h-6" /> },
+  { label: "Sites", href: "/sites", icon: <Building2 className="w-6 h-6" /> },
+  { label: "Company", href: "/company", icon: <Settings className="w-6 h-6" /> },
+  { label: "Logout", href: "", icon: <LogOut className="w-6 h-6" />, destructive: true },
+]
+
+export function MobileMoreMenu({
+  open,
+  onClose,
+  items,
+  trigger,
+  className,
+  label = "More options",
+}: MobileMoreMenuProps) {
+  const [internalOpen, setInternalOpen] = React.useState(false)
+  const menuRef = React.useRef<HTMLDivElement>(null)
+
+  // Use controlled component pattern - if open prop is provided, use it; otherwise use internal state
+  const isOpen = open !== undefined ? open : internalOpen
+  const setIsOpen = open !== undefined 
+    ? (value: boolean) => { if (!value) onClose?.() } 
+    : setInternalOpen
+
+  // Use provided items or fall back to default navigation items
+  const menuItems = items && items.length > 0 ? items : defaultNavItems
+
+  React.useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        if (open !== undefined) {
+          onClose?.()
+        } else {
+          setInternalOpen(false)
+        }
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
+    }
+  }, [isOpen, open, onClose])
+
+  return (
+    <div className={cn("relative", className)} ref={menuRef}>
+      <button
+        type="button"
+        onClick={() => {
+          if (open !== undefined) {
+            onClose?.()
+          } else {
+            setInternalOpen(!internalOpen)
+          }
+        }}
+        className="flex items-center justify-center rounded-full p-2 hover:bg-gray-100 active:bg-gray-200 transition-colors"
+        aria-label={label}
+        aria-expanded={isOpen}
+      >
+        {trigger || (
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="text-gray-600"
+          >
+            <circle cx="12" cy="12" r="1" />
+            <circle cx="12" cy="5" r="1" />
+            <circle cx="12" cy="19" r="1" />
+          </svg>
+        )}
+      </button>
+
+      {isOpen && (
+        <div className="fixed inset-x-0 bottom-0 z-50 rounded-t-2xl border-t bg-background shadow-xl max-h-[70vh] overflow-y-auto">
+          <div className="sticky top-0 bg-gray-50 border-b px-4 py-3">
+            <p className="font-bold text-lg text-gray-900">Menu</p>
+          </div>
+          <div className="px-3 pb-6 grid grid-cols-3 gap-2">
+            {menuItems.map((item, index) => {
+              if (item.href) {
+                return (
+                  <Link
+                    key={item.label + index}
+                    href={item.href}
+                    className="flex flex-col items-center justify-center gap-1 p-2 rounded-xl bg-white border border-gray-100 text-gray-700 hover:border-blue-200 hover:shadow-sm transition-all active:scale-95"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    <div className="bg-blue-50 p-2 rounded-lg">
+                      {item.icon}
+                    </div>
+                    <span className="text-xs font-medium text-gray-700 text-center leading-tight">{item.label}</span>
+                  </Link>
+                )
+              }
+
+              return (
+                <button
+                  key={item.label + index}
+                  type="button"
+                  onClick={() => {
+                    item.action?.()
+                    setIsOpen(false)
+                  }}
+                  disabled={item.disabled}
+                  className={cn(
+                    "flex flex-col items-center justify-center gap-1 p-2 rounded-xl bg-white border border-gray-100 text-gray-700 hover:border-blue-200 hover:shadow-sm transition-all active:scale-95",
+                    item.disabled && "opacity-50 cursor-not-allowed",
+                    item.destructive && "hover:border-red-200"
+                  )}
+                >
+                  <div className={cn("bg-blue-50 p-2 rounded-lg", item.destructive ? "text-red-600" : "text-blue-600")}>
+                    {item.icon}
+                  </div>
+                  <span className={cn("text-xs font-medium text-center leading-tight", item.destructive ? "text-red-600" : "text-gray-700")}>{item.label}</span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }

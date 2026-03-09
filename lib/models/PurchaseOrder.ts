@@ -1,10 +1,6 @@
 import { Schema, model, models, Document, Types } from "mongoose";
 import { addBaseFields, baseOptions, softDeletePlugin } from "./_base";
 
-// ============================================================================
-// INTERFACES
-// ============================================================================
-
 export interface IPOLine {
   lineNo: number;
   stockItemId: Types.ObjectId | null;
@@ -44,10 +40,6 @@ export interface IPurchaseOrder extends Document {
   notes: string;
 }
 
-// ============================================================================
-// SCHEMAS
-// ============================================================================
-
 const POLineSchema = new Schema<IPOLine>(
   {
     lineNo: { type: Number, required: true, min: 1 },
@@ -84,16 +76,15 @@ const POLineSchema = new Schema<IPOLine>(
 const PurchaseOrderSchema = new Schema<IPurchaseOrder>(
   addBaseFields({
     poNumber: { type: String, required: true, maxlength: 50, index: true },
-    supplierId: { type: Schema.Types.ObjectId, ref: "Supplier", required: true, index: true },
+    supplierId: { type: Schema.Types.ObjectId, ref: "Supplier", required: true },
 
     status: {
       type: String,
       enum: ["DRAFT", "SUBMITTED", "APPROVED", "SENT", "PARTIALLY_RECEIVED", "FULLY_RECEIVED", "CLOSED", "CANCELLED"],
       default: "DRAFT",
-      index: true,
     },
 
-    issuedAt: { type: Date, default: null, index: true },
+    issuedAt: { type: Date, default: null },
     expectedAt: { type: Date, default: null },
 
     lines: { type: [POLineSchema], default: [] },
@@ -110,7 +101,10 @@ const PurchaseOrderSchema = new Schema<IPurchaseOrder>(
 
 PurchaseOrderSchema.plugin(softDeletePlugin);
 
+// Indexes
 PurchaseOrderSchema.index({ companyId: 1, poNumber: 1 }, { unique: true });
+PurchaseOrderSchema.index({ companyId: 1, supplierId: 1 });
+PurchaseOrderSchema.index({ companyId: 1, status: 1 });
 
 const PurchaseOrder = models.PurchaseOrder || model<IPurchaseOrder>("PurchaseOrder", PurchaseOrderSchema);
 

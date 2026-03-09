@@ -34,9 +34,14 @@ export async function requireRole(allowedRoles: string[]) {
     );
   }
   
-  if (!allowedRoles.includes(session.role)) {
+  // Case-insensitive role check
+  const userRoleLower = session.role?.toLowerCase();
+  const hasAllowedRole = allowedRoles.some(role => role.toLowerCase() === userRoleLower);
+  
+  if (!hasAllowedRole) {
+    console.log("[RBAC] Role check failed:", { userRole: session.role, allowedRoles });
     return NextResponse.json(
-      { error: "Forbidden - insufficient permissions" },
+      { error: `Forbidden - your role (${session.role}) doesn't have permission for this action` },
       { status: 403 }
     );
   }
@@ -48,12 +53,12 @@ export async function requireRole(allowedRoles: string[]) {
  * Require admin role (shortcut for requireRole(["admin"]))
  */
 export async function requireAdmin() {
-  return requireRole(["admin"]);
+  return requireRole(["admin", "owner"]);
 }
 
 /**
  * Require manager or admin role
  */
 export async function requireManager() {
-  return requireRole(["admin", "manager"]);
+  return requireRole(["admin", "manager", "owner"]);
 }

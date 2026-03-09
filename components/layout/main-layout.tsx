@@ -2,11 +2,10 @@
 
 import * as React from "react"
 import { cn } from "@/lib/utils"
-import { Sidebar } from "@/components/layout/sidebar"
-import { MobileShell, MobileShellProps } from "@/components/mobile/mobile-shell"
-import { AppHeaderProps } from "@/components/mobile/app-header"
-import { TabItem } from "@/components/mobile/bottom-tab-bar"
-import { FabProps } from "@/components/mobile/fab"
+import { MobileShell, MobileShellProps } from "../mobile/mobile-shell"
+import { AppHeaderProps } from "../mobile/app-header"
+import { TabItem } from "../mobile/bottom-tab-bar"
+import { FabProps } from "../mobile/fab"
 
 // Inline media query hook to avoid module resolution issues
 function useMediaQuery(query: string): boolean {
@@ -93,103 +92,27 @@ export function MainLayout({
   headerProps,
   mobileShellProps,
 }: MainLayoutProps) {
-  const [sidebarOpen, setSidebarOpen] = React.useState(true)
-  const isMobile = useMediaQuery("(max-width: 768px)")
-
-  // Close sidebar on mobile by default
-  React.useEffect(() => {
-    if (isMobile) {
-      setSidebarOpen(false)
-    } else {
-      setSidebarOpen(true)
-    }
-  }, [isMobile])
-
-  // Mobile view: Use new MobileShell component
-  if (isMobile) {
-    return (
-      <MobileShell
-        showHeader={true}
-        showTabBar={showTabBar}
-        showFab={showFab}
-        fabProps={fabProps}
-        className={className}
-        headerProps={{
-          title,
-          user,
-          showMenuButton: showBackButton,
-          ...headerProps,
-        }}
-        tabBarProps={{
-          tabs,
-        }}
-        {...mobileShellProps}
-      >
-        {children}
-      </MobileShell>
-    )
-  }
-
-  // Desktop view: Keep existing sidebar layout
+  // Always use mobile layout - no desktop sidebar
   return (
-    <div className="min-h-screen bg-background">
-      {/* Desktop Sidebar */}
-      <Sidebar
-        isOpen={sidebarOpen}
-        onToggle={() => setSidebarOpen(!sidebarOpen)}
-        className="hidden md:flex"
-      />
-
-      {/* Main Content Area */}
-      <div
-        className={cn(
-          "min-h-screen transition-all duration-300 ease-in-out",
-          sidebarOpen ? "md:ml-64" : "md:ml-16"
-        )}
-      >
-        {/* Desktop Header */}
-        <div className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="flex h-14 items-center justify-between px-4 md:px-6">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="flex h-9 w-9 items-center justify-center rounded-md hover:bg-accent"
-                aria-label="Toggle sidebar"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <line x1="4" x2="20" y1="12" y2="12" />
-                  <line x1="4" x2="20" y1="6" y2="6" />
-                  <line x1="4" x2="20" y1="18" y2="18" />
-                </svg>
-              </button>
-              <h1 className="text-lg font-semibold">{title}</h1>
-            </div>
-            {headerActions && <div className="flex items-center gap-2">{headerActions}</div>}
-          </div>
-        </div>
-
-        <main
-          className={cn(
-            "pb-20 md:pb-6",
-            // Desktop: full width with padding
-            "w-full px-4 md:px-6",
-            className
-          )}
-        >
-          {children}
-        </main>
-      </div>
-    </div>
+    <MobileShell
+      showHeader={true}
+      showTabBar={showTabBar}
+      showFab={showFab}
+      fabProps={fabProps}
+      className={className}
+      headerProps={{
+        title,
+        user,
+        showMenuButton: showBackButton,
+        ...headerProps,
+      }}
+      tabBarProps={{
+        tabs,
+      }}
+      {...mobileShellProps}
+    >
+      {children}
+    </MobileShell>
   )
 }
 

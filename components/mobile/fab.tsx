@@ -1,228 +1,95 @@
-"use client"
-
 import * as React from "react"
-import Link from "next/link"
-import { Plus, LucideIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
-
-export interface FabMenuItem {
-  /**
-   * Label for the menu item
-   */
-  label: string
-  /**
-   * Icon for the menu item
-   */
-  icon: LucideIcon
-  /**
-   * Href for navigation or onClick handler
-   */
-  href?: string
-  /**
-   * Click handler (alternative to href)
-   */
-  onClick?: () => void
-}
 
 export interface FabProps {
   /**
-   * Menu items to show when FAB is expanded
+   * Icon to display in the FAB
    */
-  items?: FabMenuItem[]
+  icon?: React.ReactNode
   /**
-   * Default href when FAB is clicked (if no menu)
+   * Label for the FAB (for accessibility)
    */
-  href?: string
+  label?: string
   /**
-   * Click handler (alternative to href)
+   * Callback when FAB is clicked
    */
   onClick?: () => void
   /**
-   * Show/hide the FAB
+   * Href for navigation (optional)
    */
-  visible?: boolean
+  href?: string
   /**
-   * Position offset from bottom
-   */
-  bottomOffset?: string
-  /**
-   * Position offset from right
-   */
-  rightOffset?: string
-  /**
-   * Additional className
+   * Custom className
    */
   className?: string
   /**
-   * Label for accessibility
+   * Position of the FAB
    */
-  label?: string
+  position?: "bottom-right" | "bottom-center" | "bottom-left"
+  /**
+   * Size of the FAB
+   */
+  size?: "small" | "medium" | "large"
 }
 
-/**
- * Floating Action Button with expandable menu option.
- * Fixed position, 56px diameter, primary color with shadow.
- */
 export function Fab({
-  items = [],
-  href = "/invoices/new",
+  icon,
+  label = "Add",
   onClick,
-  visible = true,
-  bottomOffset = "80px",
-  rightOffset = "16px",
+  href,
   className,
-  label = "Create new",
+  position = "bottom-right",
+  size = "medium",
 }: FabProps) {
-  const [isOpen, setIsOpen] = React.useState(false)
-  const menuRef = React.useRef<HTMLDivElement>(null)
-
-  // Close menu when clicking outside
-  React.useEffect(() => {
-    const handleClickOutside = (event: Event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setIsOpen(false)
-      }
-    }
-
-    if (isOpen) {
-      document.addEventListener("mousedown", handleClickOutside)
-      document.addEventListener("touchstart", handleClickOutside)
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside)
-      document.removeEventListener("touchstart", handleClickOutside)
-    }
-  }, [isOpen])
-
-  const handleFabClick = () => {
-    if (items.length > 0) {
-      setIsOpen(!isOpen)
-    } else if (onClick) {
-      onClick()
-    }
+  const sizeClasses = {
+    small: "w-10 h-10",
+    medium: "w-14 h-14",
+    large: "w-16 h-16",
   }
 
-  const handleItemClick = (item: FabMenuItem) => {
-    if (item.onClick) {
-      item.onClick()
-    }
-    setIsOpen(false)
+  const positionClasses = {
+    "bottom-right": "right-4 bottom-20",
+    "bottom-center": "left-1/2 -translate-x-1/2 bottom-20",
+    "bottom-left": "left-4 bottom-20",
   }
 
-  if (!visible) {
-    return null
-  }
-
-  return (
-    <div
-      ref={menuRef}
+  const content = (
+    <button
+      type="button"
+      onClick={onClick}
       className={cn(
-        "fixed z-50",
-        // Position
-        `bottom-[${bottomOffset}] right-[${rightOffset}]`,
-        // Use inline style for dynamic values
-        { bottom: bottomOffset, right: rightOffset },
+        "fixed z-50 flex items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105 active:scale-95",
+        sizeClasses[size],
+        positionClasses[position],
         className
       )}
+      aria-label={label}
     >
-      {/* Menu items */}
-      {isOpen && items.length > 0 && (
-        <div className="absolute bottom-16 right-0 flex flex-col-reverse gap-2">
-          {items.map((item, index) => {
-            const Icon = item.icon
-            return (
-              <div
-                key={item.label}
-                className="flex items-center gap-2 animate-scaleIn"
-                style={{ animationDelay: `${index * 50}ms` }}
-              >
-                {/* Label */}
-                <span className="bg-popover text-popover-foreground text-sm px-3 py-1.5 rounded-md shadow-md whitespace-nowrap">
-                  {item.label}
-                </span>
-                {/* Menu item button */}
-                <button
-                  onClick={() => handleItemClick(item)}
-                  className={cn(
-                    // Size
-                    "h-12 w-12 rounded-full",
-                    // Background
-                    "bg-popover border border-border shadow-lg",
-                    // Flex center
-                    "flex items-center justify-center",
-                    // Text
-                    "text-popover-foreground",
-                    // Hover
-                    "hover:bg-accent transition-colors",
-                    // Active
-                    "active:scale-95"
-                  )}
-                  aria-label={item.label}
-                >
-                  <Icon className="h-5 w-5" />
-                </button>
-              </div>
-            )
-          })}
-        </div>
-      )}
-
-      {/* Main FAB button */}
-      {href && !onClick && !items.length ? (
-        <Link
-          href={href}
-          className={cn(
-            // Base styles
-            "flex items-center justify-center",
-            // Size - 56px diameter
-            "h-14 w-14 rounded-full",
-            // Primary color background
-            "bg-primary",
-            // Shadow
-            "shadow-lg shadow-primary/40",
-            // Hover animation
-            "hover:shadow-xl hover:shadow-primary/50 hover:scale-105",
-            // Active press animation
-            "active:scale-95",
-            // Transition
-            "transition-all duration-200",
-            // Icon
-            "text-primary-foreground"
-          )}
-          aria-label={label}
+      {icon || (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
         >
-          <Plus className="h-6 w-6" strokeWidth={2.5} />
-        </Link>
-      ) : (
-        <button
-          onClick={handleFabClick}
-          className={cn(
-            // Base styles
-            "flex items-center justify-center",
-            // Size - 56px diameter
-            "h-14 w-14 rounded-full",
-            // Primary color background
-            "bg-primary",
-            // Shadow
-            "shadow-lg shadow-primary/40",
-            // Hover animation
-            "hover:shadow-xl hover:shadow-primary/50 hover:scale-105",
-            // Active press animation
-            "active:scale-95",
-            // Transition
-            "transition-all duration-200",
-            // Icon
-            "text-primary-foreground",
-            // Rotate icon when open
-            isOpen && "rotate-45"
-          )}
-          aria-label={label}
-          aria-expanded={isOpen}
-        >
-          <Plus className="h-6 w-6 transition-transform duration-200" strokeWidth={2.5} />
-        </button>
+          <path d="M12 5v14M5 12h14" />
+        </svg>
       )}
-    </div>
+    </button>
   )
+
+  if (href) {
+    return (
+      <a href={href} className="fixed z-50">
+        {content}
+      </a>
+    )
+  }
+
+  return content
 }

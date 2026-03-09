@@ -24,8 +24,9 @@ export async function GET(
       companyId: session.companyId,
       isDeleted: false,
     })
-      .populate("clientId", "name email phone address")
+      .populate("clientId", "name email phone address clientCode")
       .populate("sourceQuoteId", "quoteNumber")
+      .populate("sourceGrvId", "grvNumber")
       .lean();
 
     if (!invoice) {

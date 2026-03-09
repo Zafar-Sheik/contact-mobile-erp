@@ -25,6 +25,13 @@ const CompanyProfileSchema = new Schema(
       logoUrl: { type: String, trim: true, maxlength: 500 },
       primaryColor: { type: String, trim: true, maxlength: 20 },
     },
+
+    banking: {
+      bankName: { type: String, trim: true, maxlength: 100 },
+      accountHolderName: { type: String, trim: true, maxlength: 200 },
+      accountNumber: { type: String, trim: true, maxlength: 30 },
+      branchNumber: { type: String, trim: true, maxlength: 20 },
+    },
   },
   { _id: false },
 );

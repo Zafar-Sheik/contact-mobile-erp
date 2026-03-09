@@ -39,6 +39,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import Link from "next/link";
+import { DocumentActions, DocumentPreview } from "@/components/erp/document-generator";
 
 // Types
 interface Client {
@@ -111,6 +112,36 @@ interface Quote {
   };
 }
 
+interface Company {
+  _id: string;
+  profile: {
+    legalName: string;
+    tradingName?: string;
+    registrationNumber?: string;
+    vatNumber?: string;
+    isVatRegistered: boolean;
+    email?: string;
+    phone?: string;
+    address?: {
+      line1?: string;
+      line2?: string;
+      city?: string;
+      provinceState?: string;
+      country?: string;
+      postalCode?: string;
+    };
+    branding?: {
+      logoUrl?: string;
+    };
+    banking?: {
+      bankName?: string;
+      accountHolderName?: string;
+      accountNumber?: string;
+      branchNumber?: string;
+    };
+  };
+}
+
 // Format currency
 const formatCurrency = (cents: number) => {
   return new Intl.NumberFormat("en-ZA", {
@@ -146,11 +177,12 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
   const router = useRouter();
   const { toast } = useToast();
   const [quote, setQuote] = React.useState<Quote | null>(null);
+  const [company, setCompany] = React.useState<Company | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = React.useState(false);
 
-  // Fetch quote
+  // Fetch quote and company
   React.useEffect(() => {
     const fetchQuote = async () => {
       try {
@@ -169,7 +201,21 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
         setLoading(false);
       }
     };
+
+    const fetchCompany = async () => {
+      try {
+        const res = await fetch("/api/company");
+        const data = await res.json();
+        if (data.data) {
+          setCompany(data.data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch company:", error);
+      }
+    };
+
     fetchQuote();
+    fetchCompany();
   }, [id, router, toast]);
 
   // Send quote
@@ -274,6 +320,53 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
     }
   };
 
+  // Prepare document data for print/export
+  const documentData = React.useMemo(() => {
+    if (!quote) return null;
+    
+    const client = typeof quote.clientId === 'object' ? quote.clientId : null;
+    const clientData = client || { name: 'Unknown Client' };
+    
+    // Use company data if available, otherwise use defaults
+    const companyProfile = company?.profile;
+    
+    return {
+      documentNumber: quote.quoteNumber,
+      documentType: 'quote' as const,
+      date: quote.createdAt,
+      dueDate: quote.validUntil,
+      customer: {
+        name: quote.clientSnapshot?.name || clientData.name || 'Unknown',
+        email: quote.clientSnapshot?.email || (client as any)?.email,
+        phone: quote.clientSnapshot?.phone || (client as any)?.phone,
+        billingAddress: quote.clientSnapshot?.address,
+      },
+      lines: quote.lines.map(line => ({
+        description: line.nameSnapshot || 'Item',
+        qty: line.qty,
+        unitPrice: line.unitPriceCents,
+        total: line.lineTotalCents,
+      })),
+      subtotal: quote.totals.subTotalCents,
+      vatRate: quote.vatRateBps / 100,
+      vatAmount: quote.totals.vatTotalCents,
+      total: quote.totals.totalCents,
+      notes: quote.notes,
+      company: {
+        legalName: companyProfile?.legalName || 'Your Company',
+        tradingName: companyProfile?.tradingName || companyProfile?.legalName || 'Your Company',
+        registrationNumber: companyProfile?.registrationNumber,
+        vatNumber: companyProfile?.vatNumber,
+        isVatRegistered: companyProfile?.isVatRegistered,
+        email: companyProfile?.email,
+        phone: companyProfile?.phone,
+        address: companyProfile?.address,
+        logoUrl: companyProfile?.branding?.logoUrl,
+        banking: companyProfile?.banking,
+      },
+    };
+  }, [quote, company]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -355,6 +448,15 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
             {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <ExternalLink className="h-4 w-4 mr-2" />}
             Convert to Invoice
           </Button>
+        )}
+        {documentData && (
+          <>
+            <DocumentActions data={documentData} />
+            {/* Hidden document preview for print functionality - accessible but not visually displayed */}
+            <div id="document-preview" className="absolute -left-[9999px] top-0 w-[210mm]">
+              <DocumentPreview data={documentData} />
+            </div>
+          </>
         )}
       </div>
 

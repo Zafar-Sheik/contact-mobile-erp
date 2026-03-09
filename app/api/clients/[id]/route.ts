@@ -34,8 +34,8 @@ export async function PUT(
 ) {
   const { id } = await params;
   
-  // Admin, manager, worker can update
-  const session = await requireRole(["admin", "manager", "worker"]);
+  // Admin, manager, worker, owner can update
+  const session = await requireRole(["admin", "manager", "worker", "owner"]);
   if (session instanceof NextResponse) return session;
 
   await dbConnect();
@@ -43,9 +43,12 @@ export async function PUT(
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
 
+  // Prevent clientCode from being changed (it's auto-generated)
+  const { clientCode, ...updateData } = body;
+
   const client = await Client.findOneAndUpdate(
     { _id: id, companyId: session.companyId, isDeleted: false },
-    { ...body, updatedBy: session.userId },
+    { ...updateData, updatedBy: session.userId },
     { new: true }
   );
 
@@ -62,8 +65,8 @@ export async function DELETE(
 ) {
   const { id } = await params;
   
-  // Only admin can delete
-  const session = await requireRole(["admin"]);
+  // Only admin, owner can delete
+  const session = await requireRole(["admin", "owner"]);
   if (session instanceof NextResponse) return session;
 
   await dbConnect();

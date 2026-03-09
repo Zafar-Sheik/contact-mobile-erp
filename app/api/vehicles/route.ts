@@ -4,16 +4,24 @@ import { Vehicle } from "@/lib/models/Vehicle";
 import { getSessionClaims } from "@/lib/auth/session";
 
 export async function GET() {
-  await dbConnect();
-  const session = await getSessionClaims();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    await dbConnect();
+    const session = await getSessionClaims();
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const vehicles = await Vehicle.find({ companyId: session.companyId, isDeleted: false })
-    .select("-isDeleted -deletedAt")
-    .sort({ registration: 1 })
-    .lean();
+    const vehicles = await Vehicle.find({ companyId: session.companyId, isDeleted: false })
+      .select("-isDeleted -deletedAt")
+      .sort({ registration: 1 })
+      .lean();
 
-  return NextResponse.json({ data: vehicles });
+    return NextResponse.json({ data: vehicles });
+  } catch (error: any) {
+    console.error("Error fetching vehicles:", error);
+    return NextResponse.json(
+      { error: error.message || "Failed to fetch vehicles" },
+      { status: 500 }
+    );
+  }
 }
 
 export async function POST(req: Request) {

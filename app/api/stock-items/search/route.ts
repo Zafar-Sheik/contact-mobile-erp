@@ -38,6 +38,10 @@ interface StockItemSearchResult {
     costPriceCents: number;
     salePriceCents: number;
   };
+  tax?: {
+    vatRate: number;
+    isVatExempt: boolean;
+  };
 }
 
 interface SearchParams {
@@ -137,7 +141,7 @@ export async function GET(request: Request) {
       const textLimit = limit + 1;
       
       items = await StockItem.find(textQuery)
-        .select("sku name description unit pricing.costPriceCents pricing.salePriceCents")
+        .select("sku name description unit pricing.costPriceCents pricing.salePriceCents tax.vatRate tax.isVatExempt")
         .sort({ score: { $meta: "textScore" }, name: 1 })
         .limit(textLimit)
         .lean() as StockItemSearchResult[];
@@ -168,7 +172,7 @@ export async function GET(request: Request) {
           ...baseQuery,
           _id: { $nin: usedItemIds },
         })
-          .select("sku name description unit pricing.costPriceCents pricing.salePriceCents")
+          .select("sku name description unit pricing.costPriceCents pricing.salePriceCents tax.vatRate tax.isVatExempt")
           .sort({ name: 1 })
           .limit(remainingSlots)
           .lean() as StockItemSearchResult[];
@@ -177,7 +181,7 @@ export async function GET(request: Request) {
         const recentItemsData = await StockItem.find({
           _id: { $in: usedItemIds },
         })
-          .select("sku name description unit pricing.costPriceCents pricing.salePriceCents")
+          .select("sku name description unit pricing.costPriceCents pricing.salePriceCents tax.vatRate tax.isVatExempt")
           .lean() as StockItemSearchResult[];
         
         // Sort by the order in recentUsage
@@ -192,7 +196,7 @@ export async function GET(request: Request) {
       } else {
         // No usage history, just return items sorted by name
         items = await StockItem.find(baseQuery)
-          .select("sku name description unit pricing.costPriceCents pricing.salePriceCents")
+          .select("sku name description unit pricing.costPriceCents pricing.salePriceCents tax.vatRate tax.isVatExempt")
           .sort({ name: 1 })
           .limit(limit)
           .lean() as StockItemSearchResult[];

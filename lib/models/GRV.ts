@@ -52,6 +52,7 @@ const GRVSchema = new Schema(
     // Optional references
     poId: { type: Schema.Types.ObjectId, ref: "PurchaseOrder", default: null, index: true },
     supplierInvoiceId: { type: Schema.Types.ObjectId, ref: "SupplierInvoice", default: null },
+    invoiceId: { type: Schema.Types.ObjectId, ref: "SalesInvoice", default: null, index: true },
     
     // Reference info
     referenceType: { type: String, enum: ["none", "po", "supplier_invoice", "delivery_note"], default: "none" },

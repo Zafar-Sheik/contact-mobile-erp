@@ -57,6 +57,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import Link from "next/link";
+import { useApi } from "@/lib/hooks/use-api";
+import { DocumentActions, DocumentPreview } from "@/components/erp/document-generator";
 
 // Types
 interface Client {
@@ -142,6 +144,41 @@ interface Invoice {
   paymentHistory?: CustomerPayment[];
 }
 
+interface CompanyProfile {
+  legalName: string;
+  tradingName?: string;
+  registrationNumber?: string;
+  vatNumber?: string;
+  isVatRegistered: boolean;
+  email?: string;
+  phone?: string;
+  address?: {
+    line1?: string;
+    line2?: string;
+    city?: string;
+    provinceState?: string;
+    country?: string;
+    postalCode?: string;
+  };
+  branding?: {
+    logoUrl?: string;
+    primaryColor?: string;
+  };
+  banking?: {
+    bankName?: string;
+    accountHolderName?: string;
+    accountNumber?: string;
+    branchNumber?: string;
+  };
+}
+
+interface Company {
+  _id: string;
+  profile: CompanyProfile;
+  status: string;
+  bankRef?: string;
+}
+
 // Format currency
 const formatCurrency = (cents: number) => {
   return new Intl.NumberFormat("en-ZA", {
@@ -191,6 +228,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
   const router = useRouter();
   const { toast } = useToast();
   const [invoice, setInvoice] = React.useState<Invoice | null>(null);
+  const [company, setCompany] = React.useState<Company | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = React.useState(false);
@@ -231,7 +269,21 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
         setLoading(false);
       }
     };
+
+    const fetchCompany = async () => {
+      try {
+        const res = await fetch("/api/company");
+        const data = await res.json();
+        if (data.data) {
+          setCompany(data.data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch company:", error);
+      }
+    };
+
     fetchInvoice();
+    fetchCompany();
   }, [id, router, toast]);
 
   // Issue invoice
@@ -324,6 +376,53 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
     }
   };
 
+  // Prepare document data for print/export
+  const documentData = React.useMemo(() => {
+    if (!invoice) return null;
+    
+    const client = typeof invoice.clientId === 'object' ? invoice.clientId : null;
+    const clientData = client || { name: 'Unknown Client' };
+    
+    // Use company data if available, otherwise use defaults
+    const companyProfile = company?.profile;
+    
+    return {
+      documentNumber: invoice.invoiceNumber,
+      documentType: 'invoice' as const,
+      date: invoice.issueDate,
+      dueDate: invoice.dueDate,
+      customer: {
+        name: invoice.clientSnapshot?.name || clientData.name || 'Unknown',
+        email: invoice.clientSnapshot?.email || (client as any)?.email,
+        phone: invoice.clientSnapshot?.phone || (client as any)?.phone,
+        billingAddress: invoice.clientSnapshot?.address,
+      },
+      lines: invoice.lines.map(line => ({
+        description: line.nameSnapshot || 'Item',
+        qty: line.qty,
+        unitPrice: line.unitPriceCents,
+        total: line.lineTotalCents,
+      })),
+      subtotal: invoice.totals.subTotalCents,
+      vatRate: invoice.vatRateBps / 100,
+      vatAmount: invoice.totals.vatTotalCents,
+      total: invoice.totals.totalCents,
+      notes: invoice.notes,
+      company: {
+        legalName: companyProfile?.legalName || 'Your Company',
+        tradingName: companyProfile?.tradingName || companyProfile?.legalName || 'Your Company',
+        registrationNumber: companyProfile?.registrationNumber,
+        vatNumber: companyProfile?.vatNumber,
+        isVatRegistered: companyProfile?.isVatRegistered,
+        email: companyProfile?.email,
+        phone: companyProfile?.phone,
+        address: companyProfile?.address,
+        logoUrl: companyProfile?.branding?.logoUrl,
+        banking: companyProfile?.banking,
+      },
+    };
+  }, [invoice, company]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -395,6 +494,15 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
               View Quote ({invoice.sourceQuoteId.quoteNumber})
             </Link>
           </Button>
+        )}
+        {documentData && (
+          <>
+            <DocumentActions data={documentData} />
+            {/* Hidden document preview for print functionality - accessible but not visually displayed */}
+            <div id="document-preview" className="absolute -left-[9999px] top-0 w-[210mm]">
+              <DocumentPreview data={documentData} />
+            </div>
+          </>
         )}
       </div>
 

@@ -1,10 +1,15 @@
-import { Schema, model, Document, Types } from "mongoose";
+import { Schema, model, models, Document, Types } from "mongoose";
 import { addBaseFields, baseOptions, softDeletePlugin } from "./_base";
 
 // Type definitions
+// Line item types: stock_item, labour_cost, custom
+export type LineItemType = 'stock_item' | 'labour_cost' | 'custom';
+
 interface SalesQuoteLine {
   lineNo: number;
+  lineItemType: LineItemType;
   stockItemId: Types.ObjectId | null;
+  labourItemId: Types.ObjectId | null;
   skuSnapshot: string;
   nameSnapshot: string;
   descriptionSnapshot: string;
@@ -32,6 +37,7 @@ interface ClientSnapshot {
 
 interface QuoteTotals {
   subTotalCents: number;
+  labourTotalCents: number;
   vatTotalCents: number;
   totalCents: number;
 }
@@ -68,7 +74,18 @@ export interface ISalesQuote extends Document {
 const SalesQuoteLineSchema = new Schema(
   {
     lineNo: { type: Number, required: true, min: 1 },
+    
+    // Line item type: stock_item, labour_cost, custom
+    lineItemType: { 
+      type: String, 
+      enum: ['stock_item', 'labour_cost', 'custom'], 
+      default: 'custom',
+      required: true 
+    },
+    
+    // References to source items
     stockItemId: { type: Schema.Types.ObjectId, ref: "StockItem", default: null, index: true },
+    labourItemId: { type: Schema.Types.ObjectId, ref: "LabourCost", default: null, index: true },
     
     // Snapshot of item at time of quote (for audit)
     skuSnapshot: { type: String, default: "" },
@@ -117,7 +134,7 @@ const SalesQuoteSchema = new Schema(
     quoteNumber: { type: String, required: true, maxlength: 50, index: true },
     
     // Client reference
-    clientId: { type: Schema.Types.ObjectId, ref: "Client", required: true, index: true },
+    clientId: { type: Schema.Types.ObjectId, ref: "Client", required: true },
     
     // Snapshot of client at time of quote
     clientSnapshot: { type: ClientSnapshotSchema, required: true },
@@ -127,14 +144,19 @@ const SalesQuoteSchema = new Schema(
       type: String,
       enum: ["draft", "sent", "accepted", "rejected", "expired"],
       default: "draft",
-      index: true,
     },
     
     // Line items
     lines: { type: [SalesQuoteLineSchema], default: [] },
     
-    // Financial totals
+    // Financial totals (broken down by item type)
     totals: {
+      // Subtotals by category
+      stockTotalCents: { type: Number, required: true, min: 0, default: 0 },
+      labourTotalCents: { type: Number, required: true, min: 0, default: 0 },
+      customTotalCents: { type: Number, required: true, min: 0, default: 0 },
+      
+      // Combined totals
       subTotalCents: { type: Number, required: true, min: 0, default: 0 },
       vatTotalCents: { type: Number, required: true, min: 0, default: 0 },
       totalCents: { type: Number, required: true, min: 0, default: 0 },
@@ -155,10 +177,10 @@ const SalesQuoteSchema = new Schema(
     notes: { type: String, default: "", maxlength: 5000 },
     
     // Timestamps for status changes
-    sentAt: { type: Date, default: null, index: true },
-    acceptedAt: { type: Date, default: null, index: true },
-    rejectedAt: { type: Date, default: null, index: true },
-    expiredAt: { type: Date, default: null, index: true },
+    sentAt: { type: Date, default: null },
+    acceptedAt: { type: Date, default: null },
+    rejectedAt: { type: Date, default: null },
+    expiredAt: { type: Date, default: null },
   }),
   baseOptions,
 );
@@ -169,7 +191,9 @@ SalesQuoteSchema.plugin(softDeletePlugin);
 SalesQuoteSchema.index({ companyId: 1, quoteNumber: 1 }, { unique: true });
 SalesQuoteSchema.index({ companyId: 1, clientId: 1, status: 1 });
 SalesQuoteSchema.index({ companyId: 1, status: 1, createdAt: -1 });
+// Foreign key indexes
+SalesQuoteSchema.index({ clientId: 1 });
 
-const SalesQuote = model<ISalesQuote>("SalesQuote", SalesQuoteSchema);
+const SalesQuote = models.SalesQuote || model<ISalesQuote>("SalesQuote", SalesQuoteSchema);
 
 export { SalesQuote, SalesQuoteSchema };

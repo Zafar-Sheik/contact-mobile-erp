@@ -3,6 +3,7 @@ import { cookies, headers } from "next/headers";
 import type { Types } from "mongoose";
 import { Session } from "@/lib/models/Session";
 import { User } from "@/lib/models/User";
+import { Supplier } from "@/lib/models/Supplier";
 import { dbConnect } from "@/lib/db";
 import { SESSION_COOKIE } from "./constants";
 
@@ -129,6 +130,11 @@ export async function createSession(
 export async function getSession(): Promise<SessionClaims | null> {
   // Ensure database connection before querying
   await dbConnect();
+  
+  // Force User and Supplier model registration before populate - fixes MissingSchemaError in dev mode
+  // This ensures the schema is registered even on hot reload
+  await User.findOne({}).select('_id').limit(1).lean();
+  await Supplier.findOne({}).select('_id').limit(1).lean();
   
   const jar = await cookies();
   const rawToken = jar.get(SESSION_COOKIE)?.value;

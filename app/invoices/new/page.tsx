@@ -553,17 +553,17 @@ export default function NewInvoicePage() {
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Subtotal</span>
-                <span className="font-medium">{formatCurrency(totals.subtotal * 100)}</span>
+                <span className="font-medium">{formatCurrency(totals.subtotal)}</span>
               </div>
               {formData.vatMode === "exclusive" && (
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">VAT ({formData.vatRate}%)</span>
-                  <span className="font-medium">{formatCurrency(totals.vatAmount * 100)}</span>
+                  <span className="font-medium">{formatCurrency(totals.vatAmount)}</span>
                 </div>
               )}
               <div className="flex justify-between text-lg font-bold pt-2 border-t border-green-200">
                 <span>Total</span>
-                <span>{formatCurrency(totals.total * 100)}</span>
+                <span>{formatCurrency(totals.total)}</span>
               </div>
             </div>
           </CardContent>

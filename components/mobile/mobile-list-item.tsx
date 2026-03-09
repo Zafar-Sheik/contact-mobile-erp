@@ -1,193 +1,199 @@
-"use client"
-
 import * as React from "react"
-import { ChevronRight, MoreVertical } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
 
 export interface MobileListItemProps {
   /**
-   * Main title text
+   * List item title
    */
-  title: string
+  title?: React.ReactNode
   /**
-   * Subtitle text (secondary info)
+   * List item subtitle
    */
-  subtitle?: string
+  subtitle?: React.ReactNode
   /**
-   * Description text (tertiary info, truncated)
+   * List item description
    */
-  description?: string
+  description?: React.ReactNode
   /**
-   * Left side avatar - can be image URL, icon component, or initials
-   */
-  avatar?: {
-    src?: string
-    alt?: string
-    icon?: React.ReactNode
-    fallback?: string
-    className?: string
-  }
-  /**
-   * Right side status badge
-   */
-  status?: {
-    label: string
-    variant?: "default" | "secondary" | "destructive" | "outline" | "success" | "warning" | "info"
-  }
-  /**
-   * Show chevron indicator on right
+   * Whether to show chevron
    */
   showChevron?: boolean
   /**
-   * Custom right content
+   * Right content element
    */
   rightContent?: React.ReactNode
   /**
-   * Click handler
+   * List item content (alternative to title/subtitle)
+   */
+  children?: React.ReactNode
+  /**
+   * Custom className
+   */
+  className?: string
+  /**
+   * List item click handler
    */
   onClick?: () => void
   /**
-   * Disabled state
+   * List item href for navigation
+   */
+  href?: string
+  /**
+   * Whether the item is selected
+   */
+  selected?: boolean
+  /**
+   * Whether the item is disabled
    */
   disabled?: boolean
   /**
-   * Additional className
+   * Leading element (icon, avatar, etc.)
    */
-  className?: string
+  leading?: React.ReactNode
+  /**
+   * Trailing element (badge, action button, etc.)
+   */
+  trailing?: React.ReactNode
 }
 
-/**
- * Mobile-optimized list item with touch-friendly sizing (min 44px touch target).
- * Shows title, subtitle, optional description, avatar, and action indicators.
- */
 export function MobileListItem({
   title,
   subtitle,
   description,
-  avatar,
-  status,
-  showChevron = true,
+  showChevron = false,
   rightContent,
-  onClick,
-  disabled = false,
+  children,
   className,
+  onClick,
+  href,
+  selected = false,
+  disabled = false,
+  leading,
+  trailing,
 }: MobileListItemProps) {
-  const isInteractive = !!onClick && !disabled
-
-  // Get initials from title if no fallback provided
-  const getInitials = (text: string) => {
-    return text
-      .split(" ")
-      .map((word) => word[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2)
-  }
+  const Component = href ? "a" : onClick ? "button" : "div"
 
   return (
-    <div
-      role={isInteractive ? "button" : undefined}
-      tabIndex={isInteractive ? 0 : undefined}
-      onClick={isInteractive ? onClick : undefined}
-      onKeyDown={
-        isInteractive
-          ? (e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault()
-                onClick?.()
-              }
-            }
-          : undefined
-      }
+    <Component
+      href={href}
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
       className={cn(
-        // Base container styles
-        "group flex min-h-[72px] items-center gap-3 rounded-lg border border-border/50 bg-card px-4 py-3",
-        // Interactive states
-        isInteractive && [
-          "cursor-pointer transition-all duration-200",
-          "hover:bg-accent/50 hover:border-border",
-          "active:scale-[0.99] active:bg-accent",
-          // Focus ring for accessibility
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-        ],
-        disabled && "opacity-50 cursor-not-allowed",
+        "flex w-full items-center gap-3 border-b px-4 py-3 text-left",
+        disabled && "opacity-50",
+        selected && "bg-primary/5",
+        !disabled && !selected && "hover:bg-muted/50",
+        href && "cursor-pointer",
         className
       )}
     >
-      {/* Left Avatar */}
-      {avatar && (
-        <div className="shrink-0">
-          <Avatar className={cn("h-12 w-12 border-2 border-background shadow-sm", avatar.className)}>
-            {avatar.src && <AvatarImage src={avatar.src} alt={avatar.alt || title} />}
-            {avatar.icon ? (
-              <AvatarFallback className="bg-transparent">{avatar.icon}</AvatarFallback>
-            ) : (
-              <AvatarFallback className="bg-primary/10 text-primary font-medium">
-                {avatar.fallback || getInitials(title)}
-              </AvatarFallback>
-            )}
-          </Avatar>
-        </div>
-      )}
-
-      {/* Content Area */}
+      {leading && <div className="flex-shrink-0">{leading}</div>}
       <div className="flex-1 min-w-0">
-        {/* Title Row */}
-        <div className="flex items-center gap-2">
-          <span className="truncate font-medium text-foreground">{title}</span>
-          {status && (
-            <Badge variant={status.variant || "default"} className="shrink-0 text-xs">
-              {status.label}
-            </Badge>
-          )}
-        </div>
-
-        {/* Subtitle */}
-        {subtitle && (
-          <p className="mt-0.5 truncate text-sm text-muted-foreground">{subtitle}</p>
-        )}
-
-        {/* Description */}
-        {description && (
-          <p className="mt-1 line-clamp-2 text-xs text-muted-foreground/80">{description}</p>
-        )}
-      </div>
-
-      {/* Right Content */}
-      <div className="shrink-0 flex items-center gap-2">
-        {rightContent}
-        {showChevron && isInteractive && (
-          <ChevronRight className="h-5 w-5 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5" />
+        {children || (
+          <>
+            {title && (
+              <p className="truncate font-medium">
+                {title}
+              </p>
+            )}
+            {subtitle && (
+              <p className="truncate text-sm text-muted-foreground">
+                {subtitle}
+              </p>
+            )}
+            {description && (
+              <p className="truncate text-xs text-muted-foreground">
+                {description}
+              </p>
+            )}
+          </>
         )}
       </div>
-    </div>
+      {rightContent && <div className="flex-shrink-0">{rightContent}</div>}
+      {trailing && <div className="flex-shrink-0">{trailing}</div>}
+      {showChevron && (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="flex-shrink-0 text-muted-foreground"
+        >
+          <path d="m9 18 6-6-6-6" />
+        </svg>
+      )}
+    </Component>
   )
 }
 
-// Skeleton variant for loading states
-export function MobileListItemSkeleton({ className }: { className?: string }) {
+export interface MobileListItemTitleProps {
+  /**
+   * Title content
+   */
+  children: React.ReactNode
+  /**
+   * Custom className
+   */
+  className?: string
+}
+
+export function MobileListItemTitle({ children, className }: MobileListItemTitleProps) {
+  return (
+    <p className={cn("truncate font-medium", className)}>
+      {children}
+    </p>
+  )
+}
+
+export interface MobileListItemDescriptionProps {
+  /**
+   * Description content
+   */
+  children: React.ReactNode
+  /**
+   * Custom className
+   */
+  className?: string
+}
+
+export function MobileListItemDescription({ children, className }: MobileListItemDescriptionProps) {
+  return (
+    <p className={cn("truncate text-sm text-muted-foreground", className)}>
+      {children}
+    </p>
+  )
+}
+
+export interface MobileListProps {
+  /**
+   * List content
+   */
+  children: React.ReactNode
+  /**
+   * Custom className
+   */
+  className?: string
+  /**
+   * Whether to show dividers between items
+   */
+  dividers?: boolean
+}
+
+export function MobileList({ children, className, dividers = true }: MobileListProps) {
   return (
     <div
       className={cn(
-        "flex min-h-[72px] items-center gap-3 rounded-lg border border-border/50 bg-card px-4 py-3 animate-pulse",
+        "-mx-4 bg-background",
+        dividers && "[&>*:not(:last-child)]:border-b",
         className
       )}
     >
-      {/* Avatar skeleton */}
-      <div className="h-12 w-12 rounded-full bg-muted" />
-
-      {/* Content skeleton */}
-      <div className="flex-1 space-y-2">
-        <div className="h-4 w-3/4 rounded bg-muted" />
-        <div className="h-3 w-1/2 rounded bg-muted" />
-      </div>
-
-      {/* Chevron skeleton */}
-      <div className="h-5 w-5 rounded bg-muted" />
+      {children}
     </div>
   )
 }
-
-export default MobileListItem

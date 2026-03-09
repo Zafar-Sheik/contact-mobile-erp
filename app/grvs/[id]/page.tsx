@@ -13,6 +13,7 @@ import {
   MapPin,
   User,
   Send,
+  Receipt,
 } from "lucide-react";
 import { MainLayout } from "@/components/layout/main-layout";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/ui/use-toast";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 // Types
 interface Supplier {
@@ -89,6 +91,9 @@ interface GRV {
   locationName: string;
   createdAt: string;
   postedBy?: string;
+  invoiceId?: string;
+  supplierBillId?: string;
+  supplierBillNumber?: string;
 }
 
 interface GRVDetailPageProps {
@@ -97,6 +102,7 @@ interface GRVDetailPageProps {
 
 export default function GRVDetailPage({ params }: GRVDetailPageProps) {
   const { id } = use(params);
+  const router = useRouter();
   const { toast } = useToast();
   const [grv, setGrv] = React.useState<GRV | null>(null);
   const [loading, setLoading] = React.useState(true);
@@ -185,6 +191,37 @@ export default function GRVDetailPage({ params }: GRVDetailPageProps) {
     }
   };
 
+  const handleCreateSupplierBill = async () => {
+    if (!grv) return;
+    
+    try {
+      const response = await fetch(`/api/supplier-bills/create-from-grv`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ grvIds: [grv._id] }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to create supplier bill");
+      }
+      
+      const data = await response.json();
+      toast({ title: "Success", description: `Supplier bill ${data.data.billNumber} created successfully` });
+      
+      // Refresh GRV data
+      const grvResponse = await fetch(`/api/grvs/${id}`);
+      const grvData = await grvResponse.json();
+      setGrv(grvData.data);
+    } catch (err) {
+      toast({ 
+        title: "Error", 
+        description: err instanceof Error ? err.message : "Failed to create supplier bill",
+        variant: "destructive"
+      });
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     const variants: Record<string, "success" | "warning" | "secondary" | "destructive"> = {
       Posted: "success",
@@ -246,14 +283,18 @@ export default function GRVDetailPage({ params }: GRVDetailPageProps) {
               <Printer className="mr-2 h-4 w-4" />
               Print
             </Button>
-            <Button variant="outline" onClick={handleShare}>
-              <Share2 className="mr-2 h-4 w-4" />
-              Share
-            </Button>
-            {grv.status === "Draft" && (
-              <Button onClick={handlePost}>
-                <Send className="mr-2 h-4 w-4" />
-                Post GRV
+            {!grv.invoiceId && (
+              <Button variant="default" onClick={() => router.push(`/invoices/new/from-grv?grvId=${grv._id}`)}>
+                <FileText className="mr-2 h-4 w-4" />
+                Create Invoice
+              </Button>
+            )}
+            {grv.invoiceId && (
+              <Button variant="outline" asChild>
+                <Link href={`/invoices/${grv.invoiceId}`}>
+                  <FileText className="mr-2 h-4 w-4" />
+                  View Invoice
+                </Link>
               </Button>
             )}
           </div>

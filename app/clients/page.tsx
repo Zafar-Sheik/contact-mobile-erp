@@ -38,6 +38,7 @@ import { MobileMoreMenu, useMobileMoreMenu } from "@/components/mobile/mobile-mo
 // Client type definition based on the model
 interface Client {
   _id: string;
+  clientCode: string;
   name: string;
   email?: string;
   phone?: string;
@@ -61,6 +62,7 @@ interface Client {
 }
 
 interface ClientFormData {
+  clientCode: string;
   name: string;
   email: string;
   phone: string;
@@ -74,6 +76,7 @@ interface ClientFormData {
 }
 
 const initialFormData: ClientFormData = {
+  clientCode: "",
   name: "",
   email: "",
   phone: "",
@@ -127,6 +130,7 @@ export default function ClientsPage() {
     if (client) {
       setSelectedClient(client);
       setFormData({
+        clientCode: client.clientCode || "",
         name: client.name || "",
         email: client.email || "",
         phone: client.phone || "",
@@ -155,6 +159,7 @@ export default function ClientsPage() {
     setIsSubmitting(true);
     try {
       const clientData = {
+        ...(formData.clientCode && { clientCode: formData.clientCode }),
         name: formData.name,
         email: formData.email || undefined,
         phone: formData.phone || undefined,
@@ -383,6 +388,17 @@ export default function ClientsPage() {
           </DialogHeader>
 
           <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="clientCode">Client Code</Label>
+              <Input
+                id="clientCode"
+                value={formData.clientCode}
+                onChange={(e) => setFormData({ ...formData, clientCode: e.target.value })}
+                placeholder="C001 (leave empty for auto-generated)"
+                disabled={!!selectedClient}
+              />
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="name">Name *</Label>
               <Input

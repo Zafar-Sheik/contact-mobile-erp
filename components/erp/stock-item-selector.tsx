@@ -27,6 +27,10 @@ export interface StockItemSelectorItem {
     costPriceCents: number;
     salePriceCents: number;
   };
+  tax?: {
+    vatRate: number;
+    isVatExempt: boolean;
+  };
 }
 
 export interface Category {

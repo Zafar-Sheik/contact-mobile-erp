@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import {
   Search,
   Edit,
@@ -64,10 +65,11 @@ interface GRV {
   supplierId?: { _id: string; name: string } | string;
   supplierName?: string;
   receivedAt: string;
-  status: "Draft" | "Posted" | "Cancelled";
+  status: "Draft" | "Posted" | "Cancelled" | "DRAFT" | "POSTED" | "CANCELLED";
   grandTotalCents: number;
   notes: string;
   lines?: any[];
+  invoiceId?: string;
 }
 
 interface PurchaseOrder {
@@ -348,11 +350,11 @@ export default function GRVsPage() {
 
   // Stats
   const stats = React.useMemo(() => {
-    if (!grvs) return { total: 0, draft: 0, posted: 0, totalValue: 0 };
+    if (!grvs) return { total: 0, draft: 0, converted: 0, totalValue: 0 };
     return {
       total: grvs.length,
-      draft: grvs.filter((g) => g.status === "Draft").length,
-      posted: grvs.filter((g) => g.status === "Posted").length,
+      draft: grvs.filter((g) => g.status === "Draft" || g.status === "DRAFT").length,
+      converted: grvs.filter((g) => g.invoiceId).length,
       totalValue: grvs.reduce((sum, g) => sum + g.grandTotalCents, 0),
     };
   }, [grvs]);
@@ -450,7 +452,7 @@ export default function GRVsPage() {
                   </div>
                   <Badge
                     variant={
-                      grv.status === "Posted"
+                      grv.invoiceId
                         ? "success"
                         : grv.status === "Cancelled"
                         ? "destructive"
@@ -458,7 +460,7 @@ export default function GRVsPage() {
                     }
                     className="ml-2 shrink-0"
                   >
-                    {grv.status}
+                    {grv.invoiceId ? "Invoiced" : grv.status}
                   </Badge>
                 </div>
 
@@ -477,6 +479,35 @@ export default function GRVsPage() {
 
                 {/* Actions */}
                 <div className="flex items-center justify-end gap-1 mt-3 pt-3 border-t border-gray-100">
+                  {!grv.invoiceId && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9 text-green-600"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        window.location.href = `/invoices/new/from-grv?grvId=${grv._id}`;
+                      }}
+                      title="Create Invoice"
+                    >
+                      <FileText className="h-4 w-4" />
+                    </Button>
+                  )}
+                  {grv.invoiceId && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9 text-blue-600"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                      }}
+                      title="View Invoice"
+                    >
+                      <Link href={`/invoices/${grv.invoiceId}`}>
+                        <FileText className="h-4 w-4" />
+                      </Link>
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     size="icon"
@@ -727,10 +758,10 @@ export default function GRVsPage() {
                 </Button>
                 <Button
                   onClick={handleSubmit}
-                  disabled={isSubmitting || !formData.grvNumber}
+                  disabled={isSubmitting || !formData.grvNumber || !!selectedGRV?.status && selectedGRV.status !== "Draft"}
                   className="flex-1 h-12"
                 >
-                  {isSubmitting ? "Saving..." : selectedGRV ? "Update" : "Create"}
+                  {isSubmitting ? "Saving..." : selectedGRV ? (selectedGRV.status !== "Draft" ? "Posted" : "Update") : "Create"}
                 </Button>
               </>
             )}

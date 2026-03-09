@@ -4,16 +4,24 @@ import { Site } from "@/lib/models/Site";
 import { getSessionClaims } from "@/lib/auth/session";
 
 export async function GET() {
-  await dbConnect();
-  const session = await getSessionClaims();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    await dbConnect();
+    const session = await getSessionClaims();
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const sites = await Site.find({ companyId: session.companyId, isDeleted: false })
-    .select("-isDeleted -deletedAt")
-    .sort({ name: 1 })
-    .lean();
+    const sites = await Site.find({ companyId: session.companyId, isDeleted: false })
+      .select("-isDeleted -deletedAt")
+      .sort({ name: 1 })
+      .lean();
 
-  return NextResponse.json({ data: sites });
+    return NextResponse.json({ data: sites });
+  } catch (error: any) {
+    console.error("Error fetching sites:", error);
+    return NextResponse.json(
+      { error: error.message || "Failed to fetch sites" },
+      { status: 500 }
+    );
+  }
 }
 
 export async function POST(req: Request) {

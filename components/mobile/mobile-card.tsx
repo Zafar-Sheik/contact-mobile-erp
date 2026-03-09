@@ -1,5 +1,3 @@
-"use client"
-
 import * as React from "react"
 import { cn } from "@/lib/utils"
 
@@ -9,209 +7,147 @@ export interface MobileCardProps {
    */
   children: React.ReactNode
   /**
-   * Click handler for interactive cards
+   * Custom className
+   */
+  className?: string
+  /**
+   * Card click handler
    */
   onClick?: () => void
   /**
-   * Disabled state
+   * Card href for navigation
    */
-  disabled?: boolean
+  href?: string
   /**
-   * Additional className
+   * Whether the card is clickable
    */
-  className?: string
+  interactive?: boolean
+  /**
+   * Card padding
+   */
+  padding?: "none" | "small" | "medium" | "large"
+}
+
+export function MobileCard({
+  children,
+  className,
+  onClick,
+  href,
+  interactive = false,
+  padding = "medium",
+}: MobileCardProps) {
+  const paddingClasses = {
+    none: "",
+    small: "p-2",
+    medium: "p-4",
+    large: "p-6",
+  }
+
+  const Component = href ? "a" : onClick ? "button" : "div"
+
+  return (
+    <Component
+      href={href}
+      onClick={onClick}
+      className={cn(
+        "rounded-lg border bg-card text-card-foreground shadow-sm",
+        paddingClasses[padding],
+        interactive && "cursor-pointer transition-shadow hover:shadow-md",
+        className
+      )}
+    >
+      {children}
+    </Component>
+  )
 }
 
 export interface MobileCardHeaderProps {
   /**
-   * Card header content
+   * Header content
    */
   children: React.ReactNode
   /**
-   * Additional className
+   * Custom className
    */
   className?: string
+}
+
+export function MobileCardHeader({ children, className }: MobileCardHeaderProps) {
+  return (
+    <div className={cn("flex flex-col space-y-1.5 pb-4", className)}>
+      {children}
+    </div>
+  )
+}
+
+export interface MobileCardTitleProps {
+  /**
+   * Title content
+   */
+  children: React.ReactNode
+  /**
+   * Custom className
+   */
+  className?: string
+}
+
+export function MobileCardTitle({ children, className }: MobileCardTitleProps) {
+  return (
+    <h3 className={cn("text-lg font-semibold leading-none tracking-tight", className)}>
+      {children}
+    </h3>
+  )
+}
+
+export interface MobileCardDescriptionProps {
+  /**
+   * Description content
+   */
+  children: React.ReactNode
+  /**
+   * Custom className
+   */
+  className?: string
+}
+
+export function MobileCardDescription({ children, className }: MobileCardDescriptionProps) {
+  return (
+    <p className={cn("text-sm text-muted-foreground", className)}>
+      {children}
+    </p>
+  )
 }
 
 export interface MobileCardContentProps {
   /**
-   * Card content
+   * Content
    */
   children: React.ReactNode
   /**
-   * Additional className
+   * Custom className
    */
   className?: string
+}
+
+export function MobileCardContent({ children, className }: MobileCardContentProps) {
+  return <div className={cn("", className)}>{children}</div>
 }
 
 export interface MobileCardFooterProps {
   /**
-   * Card footer content
+   * Footer content
    */
   children: React.ReactNode
   /**
-   * Additional className
+   * Custom className
    */
   className?: string
 }
 
-/**
- * Mobile-optimized card component with 12px rounded corners,
- * subtle shadow, and proper padding. Supports header, content, and footer sections.
- */
-export function MobileCard({
-  children,
-  onClick,
-  disabled = false,
-  className,
-}: MobileCardProps) {
-  const isInteractive = !!onClick && !disabled
-
-  if (isInteractive) {
-    return (
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={onClick}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault()
-            onClick()
-          }
-        }}
-        className={cn(
-          // Base card styles
-          "rounded-xl border border-border/50 bg-card shadow-sm",
-          // Interactive states
-          "cursor-pointer transition-all duration-200",
-          "hover:shadow-md hover:border-border",
-          "active:scale-[0.99] active:bg-accent/50",
-          // Focus states for accessibility
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-          disabled && "opacity-50 cursor-not-allowed",
-          className
-        )}
-      >
-        {children}
-      </div>
-    )
-  }
-
-  return (
-    <div
-      className={cn(
-        "rounded-xl border border-border/50 bg-card shadow-sm",
-        disabled && "opacity-50",
-        className
-      )}
-    >
-      {children}
-    </div>
-  )
-}
-
-/**
- * Card header section with consistent mobile padding
- */
-export function MobileCardHeader({ children, className }: MobileCardHeaderProps) {
-  return (
-    <div
-      className={cn(
-        "flex flex-col space-y-1.5 px-4 pt-4 pb-2",
-        className
-      )}
-    >
-      {children}
-    </div>
-  )
-}
-
-/**
- * Card content section with consistent mobile padding
- */
-export function MobileCardContent({ children, className }: MobileCardContentProps) {
-  return (
-    <div
-      className={cn(
-        "px-4 pb-4",
-        className
-      )}
-    >
-      {children}
-    </div>
-  )
-}
-
-/**
- * Card footer section with consistent mobile padding and top border
- */
 export function MobileCardFooter({ children, className }: MobileCardFooterProps) {
   return (
-    <div
-      className={cn(
-        "flex items-center px-4 pt-3 pb-4 border-t border-border/50 mt-2",
-        className
-      )}
-    >
+    <div className={cn("flex items-center pt-4", className)}>
       {children}
     </div>
   )
 }
-
-// Compact card variant - less padding for dense information
-export interface MobileCardCompactProps {
-  children: React.ReactNode
-  onClick?: () => void
-  disabled?: boolean
-  className?: string
-}
-
-export function MobileCardCompact({
-  children,
-  onClick,
-  disabled = false,
-  className,
-}: MobileCardCompactProps) {
-  const isInteractive = !!onClick && !disabled
-
-  if (isInteractive) {
-    return (
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={onClick}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault()
-            onClick()
-          }
-        }}
-        className={cn(
-          "rounded-lg border border-border/50 bg-card shadow-sm",
-          "cursor-pointer transition-all duration-200",
-          "hover:bg-accent/50 hover:border-border",
-          "active:scale-[0.99]",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-          disabled && "opacity-50 cursor-not-allowed",
-          className
-        )}
-      >
-        {children}
-      </div>
-    )
-  }
-
-  return (
-    <div
-      className={cn(
-        "rounded-lg border border-border/50 bg-card shadow-sm",
-        disabled && "opacity-50",
-        className
-      )}
-    >
-      {children}
-    </div>
-  )
-}
-
-export default MobileCard

@@ -43,6 +43,7 @@ export async function GET(
 
   const order = await PurchaseOrder.findOne({ _id: id, companyId: session.companyId, isDeleted: false })
     .select("-isDeleted -deletedAt")
+    .populate("supplierId", "name email phone address")
     .lean();
 
   if (!order) {

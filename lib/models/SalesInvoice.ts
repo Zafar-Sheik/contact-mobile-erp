@@ -1,10 +1,15 @@
-import { Schema, model, Document, Types } from "mongoose";
+import { Schema, model, models, Document, Types } from "mongoose";
 import { addBaseFields, baseOptions, softDeletePlugin } from "./_base";
 
 // Type definitions
+// Line item types: stock_item, labour_cost, custom
+export type LineItemType = 'stock_item' | 'labour_cost' | 'custom';
+
 interface SalesInvoiceLine {
   lineNo: number;
+  lineItemType: LineItemType;
   stockItemId: Types.ObjectId | null;
+  labourItemId: Types.ObjectId | null;
   skuSnapshot: string;
   nameSnapshot: string;
   descriptionSnapshot: string;
@@ -32,6 +37,7 @@ interface ClientSnapshot {
 
 interface InvoiceTotals {
   subTotalCents: number;
+  labourTotalCents: number;
   vatTotalCents: number;
   totalCents: number;
 }
@@ -50,6 +56,7 @@ export interface ISalesInvoice extends Document {
   amountPaidCents: number;
   balanceDueCents: number;
   sourceQuoteId: Types.ObjectId | null;
+  sourceGrvId: Types.ObjectId | null;
   vatMode: "exclusive" | "inclusive" | "none";
   vatRateBps: number;
   issueDate: Date;
@@ -72,7 +79,18 @@ export interface ISalesInvoice extends Document {
 const SalesInvoiceLineSchema = new Schema(
   {
     lineNo: { type: Number, required: true, min: 1 },
+    
+    // Line item type: stock_item, labour_cost, custom
+    lineItemType: { 
+      type: String, 
+      enum: ['stock_item', 'labour_cost', 'custom'], 
+      default: 'custom',
+      required: true 
+    },
+    
+    // References to source items
     stockItemId: { type: Schema.Types.ObjectId, ref: "StockItem", default: null, index: true },
+    labourItemId: { type: Schema.Types.ObjectId, ref: "LabourCost", default: null, index: true },
     
     // Snapshot of item at time of invoice (for audit)
     skuSnapshot: { type: String, default: "" },
@@ -121,7 +139,7 @@ const SalesInvoiceSchema = new Schema(
     invoiceNumber: { type: String, required: true, maxlength: 50, index: true },
     
     // Client reference
-    clientId: { type: Schema.Types.ObjectId, ref: "Client", required: true, index: true },
+    clientId: { type: Schema.Types.ObjectId, ref: "Client", required: true },
     
     // Snapshot of client at time of invoice
     clientSnapshot: { type: ClientSnapshotSchema, required: true },
@@ -131,7 +149,6 @@ const SalesInvoiceSchema = new Schema(
       type: String,
       enum: ["draft", "issued", "partially_paid", "paid", "overdue", "cancelled"],
       default: "draft",
-      index: true,
     },
     
     // Line items
@@ -140,6 +157,7 @@ const SalesInvoiceSchema = new Schema(
     // Financial totals
     totals: {
       subTotalCents: { type: Number, required: true, min: 0, default: 0 },
+      labourTotalCents: { type: Number, required: true, min: 0, default: 0 },
       vatTotalCents: { type: Number, required: true, min: 0, default: 0 },
       totalCents: { type: Number, required: true, min: 0, default: 0 },
     },
@@ -149,7 +167,10 @@ const SalesInvoiceSchema = new Schema(
     balanceDueCents: { type: Number, required: true, min: 0, default: 0 },
     
     // Source quote (optional)
-    sourceQuoteId: { type: Schema.Types.ObjectId, ref: "SalesQuote", default: null, index: true },
+    sourceQuoteId: { type: Schema.Types.ObjectId, ref: "SalesQuote", default: null },
+    
+    // Source GRV (optional) - for GRV to Invoice flow
+    sourceGrvId: { type: Schema.Types.ObjectId, ref: "GRV", default: null },
     
     // VAT configuration
     vatMode: {
@@ -160,17 +181,17 @@ const SalesInvoiceSchema = new Schema(
     vatRateBps: { type: Number, default: 1500, min: 0 }, // Basis points (1500 = 15%)
     
     // Dates
-    issueDate: { type: Date, required: true, index: true },
-    dueDate: { type: Date, required: true, index: true },
+    issueDate: { type: Date, required: true },
+    dueDate: { type: Date, required: true },
     
     // Additional fields
     notes: { type: String, default: "", maxlength: 5000 },
     
     // Timestamps for status changes
-    issuedAt: { type: Date, default: null, index: true },
-    paidAt: { type: Date, default: null, index: true },
-    cancelledAt: { type: Date, default: null, index: true },
-    overdueAt: { type: Date, default: null, index: true },
+    issuedAt: { type: Date, default: null },
+    paidAt: { type: Date, default: null },
+    cancelledAt: { type: Date, default: null },
+    overdueAt: { type: Date, default: null },
   }),
   baseOptions,
 );
@@ -182,7 +203,11 @@ SalesInvoiceSchema.index({ companyId: 1, invoiceNumber: 1 }, { unique: true });
 SalesInvoiceSchema.index({ companyId: 1, clientId: 1, status: 1 });
 SalesInvoiceSchema.index({ companyId: 1, status: 1, issueDate: -1 });
 SalesInvoiceSchema.index({ companyId: 1, dueDate: 1, status: 1 });
+// Foreign key indexes
+SalesInvoiceSchema.index({ clientId: 1 });
+SalesInvoiceSchema.index({ sourceQuoteId: 1 });
+SalesInvoiceSchema.index({ sourceGrvId: 1 });
 
-const SalesInvoice = model<ISalesInvoice>("SalesInvoice", SalesInvoiceSchema);
+const SalesInvoice = models.SalesInvoice || model<ISalesInvoice>("SalesInvoice", SalesInvoiceSchema);
 
 export { SalesInvoice, SalesInvoiceSchema };

@@ -37,7 +37,14 @@ export function useApi<T>(
       }
       
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        let errorMessage = `HTTP error! status: ${response.status}`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          // Response wasn't JSON, use generic message
+        }
+        throw new Error(errorMessage);
       }
       const result = await response.json();
       setData(result.data || result);
@@ -78,7 +85,14 @@ export async function apiCreate<T, P = Partial<T>>(
   }
   
   if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
+    let errorMessage = `HTTP error! status: ${response.status}`;
+    try {
+      const errorData = await response.json();
+      errorMessage = errorData.error || errorMessage;
+    } catch {
+      // Response wasn't JSON, use generic message
+    }
+    throw new Error(errorMessage);
   }
   const result = await response.json();
   return result.data || result;
@@ -103,7 +117,14 @@ export async function apiUpdate<T, P = Partial<T>>(
   }
   
   if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
+    let errorMessage = `HTTP error! status: ${response.status}`;
+    try {
+      const errorData = await response.json();
+      errorMessage = errorData.error || errorMessage;
+    } catch {
+      // Response wasn't JSON, use generic message
+    }
+    throw new Error(errorMessage);
   }
   const result = await response.json();
   return result.data || result;
@@ -125,6 +146,13 @@ export async function apiDelete(
   }
   
   if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
+    let errorMessage = `HTTP error! status: ${response.status}`;
+    try {
+      const errorData = await response.json();
+      errorMessage = errorData.error || errorMessage;
+    } catch {
+      // Response wasn't JSON, use generic message
+    }
+    throw new Error(errorMessage);
   }
 }

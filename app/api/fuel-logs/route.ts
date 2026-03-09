@@ -4,29 +4,37 @@ import { FuelLog } from "@/lib/models/FuelLog";
 import { getSessionClaims } from "@/lib/auth/session";
 
 export async function GET() {
-  await dbConnect();
-  const session = await getSessionClaims();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    await dbConnect();
+    const session = await getSessionClaims();
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const logs = await FuelLog.find({ companyId: session.companyId, isDeleted: false })
-    .select("-isDeleted -deletedAt")
-    .populate("vehicleId", "name registration")
-    .sort({ filledAt: -1 })
-    .lean();
+    const logs = await FuelLog.find({ companyId: session.companyId, isDeleted: false })
+      .select("-isDeleted -deletedAt")
+      .populate("vehicleId", "name registration")
+      .sort({ filledAt: -1 })
+      .lean();
 
-  // Transform data to match frontend expectations
-  const transformedLogs = logs.map((log: any) => ({
-    ...log,
-    vehicleId: log.vehicleId?._id || log.vehicleId,
-    vehicleRegistration: log.vehicleId?.registration || log.vehicleId?.name || "Unknown",
-    date: log.filledAt,
-    odometer: log.odometerKm,
-    liters: log.liters,
-    costPerLiter: log.costCents ? log.costCents / 100 / log.liters : 0,
-    totalCost: log.costCents ? log.costCents / 100 : 0,
-  }));
+    // Transform data to match frontend expectations
+    const transformedLogs = logs.map((log: any) => ({
+      ...log,
+      vehicleId: log.vehicleId?._id || log.vehicleId,
+      vehicleRegistration: log.vehicleId?.registration || log.vehicleId?.name || "Unknown",
+      date: log.filledAt,
+      odometer: log.odometerKm,
+      liters: log.liters,
+      costPerLiter: log.costCents ? log.costCents / 100 / log.liters : 0,
+      totalCost: log.costCents ? log.costCents / 100 : 0,
+    }));
 
-  return NextResponse.json({ data: transformedLogs });
+    return NextResponse.json({ data: transformedLogs });
+  } catch (error: any) {
+    console.error("Error fetching fuel logs:", error);
+    return NextResponse.json(
+      { error: error.message || "Failed to fetch fuel logs" },
+      { status: 500 }
+    );
+  }
 }
 
 export async function POST(req: Request) {
