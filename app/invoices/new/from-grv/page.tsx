@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
@@ -105,6 +106,14 @@ const formatCurrency = (cents: number) => {
 };
 
 export default function NewInvoiceFromGRVPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50 p-4">Loading...</div>}>
+      <NewInvoiceFromGRVPageInner />
+    </Suspense>
+  );
+}
+
+function NewInvoiceFromGRVPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const grvId = searchParams.get("grvId");
