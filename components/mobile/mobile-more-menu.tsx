@@ -17,6 +17,7 @@ import {
   DollarSign,
   Car,
   LogOut,
+  Upload,
 } from "lucide-react"
 
 export interface MoreMenuItem {
@@ -86,10 +87,12 @@ export function useMobileMoreMenu() {
 const defaultNavItems: MoreMenuItem[] = [
   { label: "Dashboard", href: "/", icon: <LayoutDashboard className="w-6 h-6" /> },
   { label: "Invoices", href: "/invoices", icon: <FileText className="w-6 h-6" /> },
+  { label: "Demo", href: "/no-vat-invoices", icon: <FileText className="w-6 h-6" /> },
   { label: "Quotes", href: "/quotes", icon: <ClipboardList className="w-6 h-6" /> },
   { label: "Clients", href: "/clients", icon: <Users className="w-6 h-6" /> },
   { label: "Suppliers", href: "/suppliers", icon: <Truck className="w-6 h-6" /> },
   { label: "Stock", href: "/stock-items", icon: <Package className="w-6 h-6" /> },
+  { label: "Import Stock", href: "/stock-items/import", icon: <Upload className="w-6 h-6" /> },
   { label: "GRVs", href: "/grvs", icon: <Receipt className="w-6 h-6" /> },
   { label: "Orders", href: "/purchase-orders", icon: <ShoppingCart className="w-6 h-6" /> },
   { label: "Bills", href: "/supplier-bills", icon: <Folder className="w-6 h-6" /> },

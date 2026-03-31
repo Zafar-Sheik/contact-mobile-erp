@@ -509,14 +509,11 @@ export default function NewInvoiceFromGRVPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="exclusive">VAT Exclusive</SelectItem>
                   <SelectItem value="inclusive">VAT Inclusive</SelectItem>
-                  <SelectItem value="none">No VAT</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            {formData.vatMode !== "none" && (
-              <div className="space-y-2">
+            <div className="space-y-2">
                 <Label className="text-sm text-gray-600">VAT Rate (%)</Label>
                 <Input
                   type="number"
@@ -527,8 +524,7 @@ export default function NewInvoiceFromGRVPage() {
                   className="h-10"
                 />
               </div>
-            )}
-          </CardContent>
+            </CardContent>
         </Card>
 
         {/* Dates */}

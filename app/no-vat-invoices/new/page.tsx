@@ -30,7 +30,6 @@ import { useApi, apiCreate } from "@/lib/hooks/use-api";
 import { MobileMoreMenu, useMobileMoreMenu } from "@/components/mobile/mobile-more-menu";
 import { StockItemSelector, StockItemSelectorTrigger, StockItemSelectorItem } from "@/components/erp/stock-item-selector";
 
-// Types
 interface Client {
   _id: string;
   name: string;
@@ -61,7 +60,6 @@ interface InvoiceFormData {
   sourceQuoteId: string;
   lines: InvoiceLine[];
   vatMode: string;
-  vatRate: number;
   issueDate: string;
   dueDate: string;
   notes: string;
@@ -76,11 +74,10 @@ const createEmptyLine = (): InvoiceLine => ({
   qty: 1,
   unitPrice: 0,
   discount: 0,
-  taxable: true,
+  taxable: false,
   total: 0,
 });
 
-// Format currency
 const formatCurrency = (cents: number) => {
   return new Intl.NumberFormat("en-ZA", {
     style: "currency",
@@ -88,26 +85,22 @@ const formatCurrency = (cents: number) => {
   }).format(cents);
 };
 
-export default function NewInvoicePage() {
+export default function NewNoVatInvoicePage() {
   const router = useRouter();
   const { toast } = useToast();
   const { isOpen: isMoreOpen, open: openMore, close: closeMore } = useMobileMoreMenu();
 
-  // API data
   const { data: clients } = useApi<Client[]>("/api/clients");
   const { data: quotes } = useApi<Quote[]>("/api/quotes");
   
-  // Modal state
   const [isSelectorOpen, setIsSelectorOpen] = React.useState(false);
   const [activeLineIndex, setActiveLineIndex] = React.useState<number | null>(null);
 
-  // Form state
   const [formData, setFormData] = React.useState<InvoiceFormData>({
     clientId: "",
     sourceQuoteId: "",
     lines: [createEmptyLine()],
-    vatMode: "exclusive",
-    vatRate: 15,
+    vatMode: "none",
     issueDate: new Date().toISOString().split("T")[0],
     dueDate: "",
     notes: "",
@@ -115,12 +108,10 @@ export default function NewInvoicePage() {
 
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
-  // Filter accepted quotes
   const acceptedQuotes = React.useMemo(() => {
     return quotes?.filter((q) => q.status === "accepted") || [];
   }, [quotes]);
 
-  // Set due date based on issue date when issue date changes
   React.useEffect(() => {
     if (formData.issueDate && !formData.dueDate) {
       const issueDate = new Date(formData.issueDate);
@@ -133,19 +124,15 @@ export default function NewInvoicePage() {
     }
   }, [formData.issueDate]);
 
-  // Calculate totals
   const totals = React.useMemo(() => {
     let subtotal = 0;
     formData.lines.forEach((line) => {
       const lineTotal = line.qty * (line.unitPrice - line.discount);
       subtotal += lineTotal;
     });
-    const vatAmount = formData.vatMode === "exclusive" ? subtotal * (formData.vatRate / 100) : 0;
-    const total = formData.vatMode === "exclusive" ? subtotal + vatAmount : subtotal;
-    return { subtotal, vatAmount, total };
-  }, [formData.lines, formData.vatRate, formData.vatMode]);
+    return { subtotal, total: subtotal };
+  }, [formData.lines]);
 
-  // Add new line
   const addLine = () => {
     setFormData((prev) => ({
       ...prev,
@@ -153,7 +140,6 @@ export default function NewInvoicePage() {
     }));
   };
 
-  // Remove line
   const removeLine = (lineId: string) => {
     if (formData.lines.length === 1) return;
     setFormData((prev) => ({
@@ -162,7 +148,6 @@ export default function NewInvoicePage() {
     }));
   };
 
-  // Update line
   const updateLine = (lineId: string, updates: Partial<InvoiceLine>) => {
     setFormData((prev) => ({
       ...prev,
@@ -172,7 +157,6 @@ export default function NewInvoicePage() {
     }));
   };
 
-  // Handle stock item selection from modal
   const handleStockItemSelect = async (item: StockItemSelectorItem, priceCents: number) => {
     if (activeLineIndex === null) return;
     const line = formData.lines[activeLineIndex];
@@ -183,23 +167,20 @@ export default function NewInvoicePage() {
       itemName: item.name,
       itemSku: item.sku,
       itemUnit: item.unit,
-      unitPrice: priceCents / 100, // Use the default price from selector
+      unitPrice: priceCents / 100,
       qty: line.qty || 1,
     });
 
-    // Track usage in background (fire and forget)
     fetch(`/api/stock-items/track-usage?stockItemId=${item._id}`, { method: "POST" }).catch(() => {});
     
     setActiveLineIndex(null);
   };
 
-  // Open selector for specific line
   const openSelectorForLine = (lineIndex: number) => {
     setActiveLineIndex(lineIndex);
     setIsSelectorOpen(true);
   };
 
-  // Clear stock item from line
   const clearStockItem = (lineId: string) => {
     updateLine(lineId, {
       stockItemId: null,
@@ -210,11 +191,9 @@ export default function NewInvoicePage() {
     });
   };
 
-  // Handle quote selection
   const handleQuoteChange = (quoteId: string) => {
     const quote = quotes?.find((q) => q._id === quoteId);
     if (quote) {
-      // For now, just set the client ID from the quote
       const clientId = typeof quote.clientId === "object" ? quote.clientId._id : quote.clientId;
       setFormData((prev) => ({
         ...prev,
@@ -224,12 +203,10 @@ export default function NewInvoicePage() {
     }
   };
 
-  // Handle cancel
   const handleCancel = () => {
-    router.push("/invoices");
+    router.push("/no-vat-invoices");
   };
 
-  // Handle submit
   const handleSubmit = async (issueImmediately: boolean) => {
     if (!formData.clientId) {
       toast({ title: "Error", description: "Please select a client", variant: "destructive" });
@@ -260,8 +237,8 @@ export default function NewInvoicePage() {
           taxable: line.taxable,
           lineTotalCents: Math.round((line.qty * (line.unitPrice - line.discount)) * 100),
         })),
-        vatMode: formData.vatMode,
-        vatRateBps: formData.vatRate * 100,
+        vatMode: "none",
+        vatRateBps: 0,
         issueDate: formData.issueDate,
         dueDate: formData.dueDate,
         notes: formData.notes || undefined,
@@ -270,7 +247,7 @@ export default function NewInvoicePage() {
 
       await apiCreate("/api/invoices", invoiceData);
       toast({ title: "Success", description: issueImmediately ? "Invoice created and issued" : "Invoice saved as draft" });
-      router.push("/invoices");
+      router.push("/no-vat-invoices");
     } catch (err) {
       toast({
         title: "Error",
@@ -284,17 +261,16 @@ export default function NewInvoicePage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-32">
-      {/* Mobile Header */}
       <header className="bg-white border-b border-gray-200 px-4 py-4 sticky top-0 z-10">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" asChild className="h-10 w-10">
-              <Link href="/invoices">
+              <Link href="/no-vat-invoices">
                 <ArrowLeft className="h-5 w-5" />
               </Link>
             </Button>
             <div>
-              <h1 className="text-lg font-bold">New Invoice</h1>
+              <h1 className="text-lg font-bold">New Demo Invoice</h1>
             </div>
           </div>
           <Button size="icon" variant="ghost" onClick={openMore} className="h-10 w-10">
@@ -304,13 +280,11 @@ export default function NewInvoicePage() {
       </header>
 
       <main className="p-4 space-y-4">
-        {/* Client & Source Selection */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Client & Source</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Quote Selection */}
             {acceptedQuotes.length > 0 && (
               <div className="space-y-2">
                 <Label className="text-sm text-gray-600">Create from Quote (optional)</Label>
@@ -332,7 +306,6 @@ export default function NewInvoicePage() {
               </div>
             )}
 
-            {/* Client Selection */}
             <div className="space-y-2">
               <Label className="text-sm text-gray-600">Client *</Label>
               <Select
@@ -354,7 +327,6 @@ export default function NewInvoicePage() {
           </CardContent>
         </Card>
 
-        {/* Line Items */}
         <Card>
           <CardHeader className="pb-3 flex flex-row items-center justify-between">
             <CardTitle className="text-base">Line Items</CardTitle>
@@ -437,28 +409,11 @@ export default function NewInvoicePage() {
                     />
                   </div>
                 </div>
-
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id={`taxable-${line.id}`}
-                    checked={line.taxable}
-                    onCheckedChange={(checked) =>
-                      updateLine(line.id, { taxable: checked as boolean })
-                    }
-                  />
-                  <label
-                    htmlFor={`taxable-${line.id}`}
-                    className="text-sm text-gray-600"
-                  >
-                    Taxable
-                  </label>
-                </div>
               </div>
             ))}
           </CardContent>
         </Card>
 
-        {/* VAT Settings */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base">VAT Settings</CardTitle>
@@ -474,28 +429,13 @@ export default function NewInvoicePage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="inclusive">VAT Inclusive</SelectItem>
+                  <SelectItem value="none">Demo</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-sm">VAT Rate (%)</Label>
-              <Input
-                type="number"
-                min="0"
-                max="100"
-                value={formData.vatRate}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, vatRate: Number(e.target.value) || 0 }))
-                }
-                className="h-11"
-              />
             </div>
           </CardContent>
         </Card>
 
-        {/* Dates */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Dates</CardTitle>
@@ -528,7 +468,6 @@ export default function NewInvoicePage() {
           </CardContent>
         </Card>
 
-        {/* Notes */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Notes</CardTitle>
@@ -545,7 +484,6 @@ export default function NewInvoicePage() {
           </CardContent>
         </Card>
 
-        {/* Totals Summary */}
         <Card className="bg-green-50 border-green-200">
           <CardContent className="pt-4">
             <div className="space-y-2">
@@ -553,12 +491,10 @@ export default function NewInvoicePage() {
                 <span className="text-gray-600">Subtotal</span>
                 <span className="font-medium">{formatCurrency(totals.subtotal)}</span>
               </div>
-              {formData.vatMode === "exclusive" && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">VAT ({formData.vatRate}%)</span>
-                  <span className="font-medium">{formatCurrency(totals.vatAmount)}</span>
-                </div>
-              )}
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">VAT (0%)</span>
+                <span className="font-medium">R0.00</span>
+              </div>
               <div className="flex justify-between text-lg font-bold pt-2 border-t border-green-200">
                 <span>Total</span>
                 <span>{formatCurrency(totals.total)}</span>
@@ -568,7 +504,6 @@ export default function NewInvoicePage() {
         </Card>
       </main>
 
-      {/* Bottom Action Buttons */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 pb-safe z-20 space-y-2">
         <Button
           onClick={() => handleSubmit(true)}
@@ -597,10 +532,8 @@ export default function NewInvoicePage() {
         </div>
       </div>
 
-      {/* Mobile More Menu */}
       <MobileMoreMenu open={isMoreOpen} onClose={closeMore} />
 
-      {/* Stock Item Selector Modal */}
       <StockItemSelector
         open={isSelectorOpen}
         onOpenChange={setIsSelectorOpen}

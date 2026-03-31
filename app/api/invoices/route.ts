@@ -11,7 +11,11 @@ import { StockItem } from "@/lib/models/StockItem";
 import { validateLineItems } from "@/lib/utils/line-item-validation";
 
 // Ensure SalesQuote model is registered in Mongoose
-mongoose.model("SalesQuote", SalesQuoteSchema);
+try {
+  mongoose.model("SalesQuote");
+} catch {
+  mongoose.model("SalesQuote", SalesQuoteSchema);
+}
 
 // GET /api/invoices - List all invoices with pagination
 export async function GET(req: Request) {
@@ -29,6 +33,7 @@ export async function GET(req: Request) {
     const clientId = searchParams.get("clientId");
     const search = searchParams.get("search");
     const overdue = searchParams.get("overdue");
+    const vatMode = searchParams.get("vatMode");
 
     // Build query
     const query: any = { companyId: session.companyId, isDeleted: false };
@@ -39,6 +44,10 @@ export async function GET(req: Request) {
 
     if (clientId) {
       query.clientId = clientId;
+    }
+
+    if (vatMode) {
+      query.vatMode = vatMode;
     }
 
     if (search) {

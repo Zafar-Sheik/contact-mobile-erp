@@ -404,9 +404,7 @@ export default function NewQuotePage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="exclusive">VAT Exclusive</SelectItem>
                   <SelectItem value="inclusive">VAT Inclusive</SelectItem>
-                  <SelectItem value="none">No VAT</SelectItem>
                 </SelectContent>
               </Select>
             </div>
