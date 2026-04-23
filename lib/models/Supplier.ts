@@ -4,6 +4,7 @@ import { addBaseFields, baseOptions, softDeletePlugin } from "./_base";
 const SupplierSchema = new Schema(
   addBaseFields({
     name: { type: String, required: true, trim: true, maxlength: 200, index: true },
+    contactPerson: { type: String, trim: true, maxlength: 200 },
     email: { type: String, trim: true, lowercase: true, maxlength: 200 },
     phone: { type: String, trim: true, maxlength: 50 },
 

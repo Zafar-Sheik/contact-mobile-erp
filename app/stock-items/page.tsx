@@ -356,19 +356,78 @@ export default function StockItemsPage() {
   };
 
   const handleSubmit = async () => {
+    // Additional validation
+    if (!formData.sku.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "SKU is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!formData.name.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Name is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const onHand = Number(formData.onHand);
+    if (isNaN(onHand) || onHand < 0) {
+      toast({
+        title: "Validation Error",
+        description: "Quantity must be a valid non-negative number",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const reorderLevel = Number(formData.reorderLevel);
+    if (isNaN(reorderLevel) || reorderLevel < 0) {
+      toast({
+        title: "Validation Error",
+        description: "Reorder level must be a valid non-negative number",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const salePrice = Number(formData.salePriceCents);
+    if (isNaN(salePrice) || salePrice < 0) {
+      toast({
+        title: "Validation Error",
+        description: "Sale price must be a valid non-negative number",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const costPrice = Number(formData.costPriceCents);
+    if (isNaN(costPrice) || costPrice < 0) {
+      toast({
+        title: "Validation Error",
+        description: "Cost price must be a valid non-negative number",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const itemData = {
-        sku: formData.sku,
-        name: formData.name,
-        description: formData.description || undefined,
+        sku: formData.sku.trim(),
+        name: formData.name.trim(),
+        description: formData.description?.trim() || undefined,
         inventory: {
-          onHand: Number(formData.onHand),
-          reorderLevel: Number(formData.reorderLevel),
+          onHand: onHand,
+          reorderLevel: reorderLevel,
         },
         pricing: {
-          salePriceCents: Math.round(Number(formData.salePriceCents) * 100),
-          costPriceCents: Math.round(Number(formData.costPriceCents) * 100),
+          salePriceCents: Math.round(salePrice * 100),
+          costPriceCents: Math.round(costPrice * 100),
         },
         unit: formData.unit,
         isActive: formData.isActive,
@@ -662,7 +721,7 @@ export default function StockItemsPage() {
               <Input
                 id="sku"
                 value={formData.sku}
-                onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, sku: e.target.value.trim() })}
                 placeholder="SKU-001"
               />
             </div>
@@ -672,7 +731,7 @@ export default function StockItemsPage() {
               <Input
                 id="name"
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value.trim() })}
                 placeholder="Item name"
               />
             </div>
@@ -684,9 +743,11 @@ export default function StockItemsPage() {
                   id="onHand"
                   type="number"
                   min="0"
+                  step="1"
                   value={formData.onHand}
                   onChange={(e) => setFormData({ ...formData, onHand: e.target.value })}
                   className="h-12"
+                  placeholder="0"
                 />
               </div>
               <div className="space-y-2">
@@ -695,9 +756,11 @@ export default function StockItemsPage() {
                   id="reorderLevel"
                   type="number"
                   min="0"
+                  step="1"
                   value={formData.reorderLevel}
                   onChange={(e) => setFormData({ ...formData, reorderLevel: e.target.value })}
                   className="h-12"
+                  placeholder="0"
                 />
               </div>
             </div>
@@ -713,6 +776,7 @@ export default function StockItemsPage() {
                   value={formData.salePriceCents}
                   onChange={(e) => setFormData({ ...formData, salePriceCents: e.target.value })}
                   className="h-12"
+                  placeholder="0.00"
                 />
               </div>
               <div className="space-y-2">
@@ -725,6 +789,7 @@ export default function StockItemsPage() {
                   value={formData.costPriceCents}
                   onChange={(e) => setFormData({ ...formData, costPriceCents: e.target.value })}
                   className="h-12"
+                  placeholder="0.00"
                 />
               </div>
             </div>
@@ -755,7 +820,19 @@ export default function StockItemsPage() {
             </Button>
             <Button
               onClick={handleSubmit}
-              disabled={isSubmitting || !formData.name || !formData.sku}
+              disabled={
+                isSubmitting ||
+                !formData.sku.trim() ||
+                !formData.name.trim() ||
+                isNaN(Number(formData.onHand)) ||
+                Number(formData.onHand) < 0 ||
+                isNaN(Number(formData.reorderLevel)) ||
+                Number(formData.reorderLevel) < 0 ||
+                isNaN(Number(formData.salePriceCents)) ||
+                Number(formData.salePriceCents) < 0 ||
+                isNaN(Number(formData.costPriceCents)) ||
+                Number(formData.costPriceCents) < 0
+              }
               className="flex-1 h-12"
             >
               {isSubmitting ? "Saving..." : selectedItem ? "Update" : "Add Item"}

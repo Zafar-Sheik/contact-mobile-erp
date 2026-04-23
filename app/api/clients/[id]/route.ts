@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { dbConnect } from "@/lib/db";
 import { Client } from "@/lib/models/Client";
 import { requireAuth, requireRole } from "@/lib/auth/rbac";
+import { SalesInvoice } from "@/lib/models/SalesInvoice";
+import { SalesQuote } from "@/lib/models/SalesQuote";
 
 export const runtime = "nodejs";
 
@@ -44,7 +46,7 @@ export async function PUT(
   if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
 
   // Prevent clientCode from being changed (it's auto-generated)
-  const { clientCode, ...updateData } = body;
+  const { clientCode: _, ...updateData } = body;
 
   const client = await Client.findOneAndUpdate(
     { _id: id, companyId: session.companyId, isDeleted: false },
@@ -64,7 +66,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  
+
   // Only admin, owner can delete
   const session = await requireRole(["admin", "owner"]);
   if (session instanceof NextResponse) return session;
@@ -75,6 +77,18 @@ export async function DELETE(
 
   if (!client) {
     return NextResponse.json({ error: "Client not found" }, { status: 404 });
+  }
+
+  // Check for related records that would prevent deletion
+  const [invoiceCount, quoteCount] = await Promise.all([
+    SalesInvoice.countDocuments({ clientId: id, companyId: session.companyId, isDeleted: false }),
+    SalesQuote.countDocuments({ clientId: id, companyId: session.companyId, isDeleted: false }),
+  ]);
+
+  if (invoiceCount > 0 || quoteCount > 0) {
+    return NextResponse.json({
+      error: "Cannot delete client with existing transactions. Client has related invoices, quotes, or payments."
+    }, { status: 400 });
   }
 
   await client.softDelete(session.userId);

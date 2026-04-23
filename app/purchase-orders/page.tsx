@@ -212,34 +212,37 @@ export default function PurchaseOrdersPage() {
       return;
     }
 
+    // Filter out line items that don't have stock items selected
+    const validLines = formData.lines.filter(line => line.stockItemId && line.stockItemId.trim() && (line.orderedQty || 0) > 0);
+
+    if (validLines.length === 0) {
+      toast({
+        title: "Error",
+        description: "Please add at least one line item with a selected stock item and valid quantity",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const orderData = {
         supplierId: formData.supplierId,
-        date: formData.date,
-        expectedDelivery: formData.expectedDelivery,
+        expectedAt: formData.expectedDelivery ? new Date(formData.expectedDelivery) : undefined,
         notes: formData.notes || undefined,
-        status: formData.status,
-        lines: formData.lines.map(line => {
-          // Validate line has required fields
-          const description = line.description || line.stockItemName || "No description";
-          if (!description) {
-            return null;
-          }
-          return {
-            stockItemId: line.stockItemId || undefined,
-            quantity: line.orderedQty || 1,
-            // Snapshots
-            skuSnapshot: line.skuSnapshot || "",
-            nameSnapshot: line.nameSnapshot || line.stockItemName || "",
-            descriptionSnapshot: line.descriptionSnapshot || "",
-            unitSnapshot: line.unitSnapshot || "",
-            // Legacy
-            description: description,
-            orderedQty: line.orderedQty || 1,
-            unitCostCents: line.unitCostCents || 0,
-          };
-        }).filter(Boolean),
+        lines: validLines.map(line => ({
+          stockItemId: line.stockItemId,
+          quantity: line.orderedQty || 1,
+          unitCostCents: line.unitCostCents || 0,
+          // Snapshots
+          skuSnapshot: line.skuSnapshot || "",
+          nameSnapshot: line.nameSnapshot || line.stockItemName || "",
+          descriptionSnapshot: line.descriptionSnapshot || "",
+          unitSnapshot: line.unitSnapshot || "",
+          // Legacy
+          description: line.description || line.stockItemName || "",
+          orderedQty: line.orderedQty || 1,
+        })),
       };
 
       if (selectedOrder) {
@@ -348,9 +351,14 @@ export default function PurchaseOrdersPage() {
     setFormData((prev) => {
       const newLines = [...prev.lines];
       const line = { ...newLines[index] };
-      
+
       (line as any)[field] = value;
-      
+
+      // Ensure quantity is at least 1
+      if (field === "orderedQty" && (!value || value < 1)) {
+        line.orderedQty = 1;
+      }
+
       // Recalculate subtotal
       line.subtotalCents = (line.orderedQty || 0) * (line.unitCostCents || 0);
       newLines[index] = line;
@@ -641,16 +649,16 @@ export default function PurchaseOrdersPage() {
                       />
 
                       <div className="grid grid-cols-2 gap-2">
-                        <div className="space-y-1">
-                          <Label className="text-xs">Quantity</Label>
-                          <Input
-                            type="number"
-                            min="1"
-                            value={line.orderedQty}
-                            onChange={(e) => updateLineItem(index, "orderedQty", parseInt(e.target.value) || 0)}
-                            className="h-9"
-                          />
-                        </div>
+                         <div className="space-y-1">
+                           <Label className="text-xs">Quantity</Label>
+                           <Input
+                             type="number"
+                             min="1"
+                             value={line.orderedQty}
+                             onChange={(e) => updateLineItem(index, "orderedQty", Math.max(1, parseInt(e.target.value) || 1))}
+                             className="h-9"
+                           />
+                         </div>
                         <div className="space-y-1">
                           <Label className="text-xs">Unit Cost (R)</Label>
                           <Input
@@ -690,7 +698,11 @@ export default function PurchaseOrdersPage() {
             </Button>
             <Button
               onClick={handleSubmit}
-              disabled={isSubmitting || !formData.supplierId}
+              disabled={
+                isSubmitting ||
+                !formData.supplierId ||
+                !formData.lines.some(line => line.stockItemId && line.stockItemId.trim() && (line.orderedQty || 0) > 0)
+              }
               className="flex-1 h-12"
             >
               {isSubmitting ? "Saving..." : selectedOrder ? "Update" : "Create"}

@@ -6,10 +6,8 @@ import {
   ArrowLeft,
   Plus,
   Trash2,
-  Save,
   X,
   ChevronDown,
-  Package,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -185,7 +183,7 @@ export default function NewQuotePage() {
   };
 
   // Handle submit
-  const handleSubmit = async (saveAsDraft: boolean) => {
+  const handleSubmit = async () => {
     if (!formData.clientId) {
       toast({ title: "Error", description: "Please select a client", variant: "destructive" });
       return;
@@ -221,11 +219,11 @@ export default function NewQuotePage() {
         vatRateBps: formData.vatRate * 100,
         validUntil: formData.validUntil || null,
         notes: formData.notes || undefined,
-        status: saveAsDraft ? "draft" : "sent",
+        status: "draft",
       };
 
       await apiCreate("/api/quotes", quoteData);
-      toast({ title: "Success", description: saveAsDraft ? "Quote saved as draft" : "Quote created and sent" });
+      toast({ title: "Success", description: "Quote saved" });
       router.push("/quotes");
     } catch (err) {
       toast({
@@ -482,11 +480,11 @@ export default function NewQuotePage() {
       {/* Bottom Action Buttons */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 pb-safe z-20 space-y-2">
         <Button
-          onClick={() => handleSubmit(false)}
+          onClick={handleSubmit}
           disabled={isSubmitting}
           className="w-full h-12 bg-blue-600 hover:bg-blue-700"
         >
-          {isSubmitting ? "Saving..." : "Save & Send"}
+          {isSubmitting ? "Saving..." : "Save"}
         </Button>
         <div className="flex gap-2">
           <Button
@@ -499,7 +497,7 @@ export default function NewQuotePage() {
           </Button>
           <Button
             variant="outline"
-            onClick={() => handleSubmit(true)}
+            onClick={handleSubmit}
             disabled={isSubmitting}
             className="flex-1 h-11"
           >

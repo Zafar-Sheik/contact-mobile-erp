@@ -36,7 +36,7 @@ export const NullableMoneyCents = {
 export function softDeletePlugin(schema: Schema) {
   schema.index({ companyId: 1, isDeleted: 1 });
 
-  schema.methods.softDelete = async function (userId: Types.ObjectId) {
+  schema.methods.softDelete = async function (userId: string | Types.ObjectId) {
     this.isDeleted = true;
     this.deletedAt = new Date();
     this.updatedBy = userId;
