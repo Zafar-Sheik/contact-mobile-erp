@@ -23,7 +23,13 @@ interface SalesInvoiceLine {
 
 interface ClientSnapshot {
   name: string;
-  email: string;
+  emails: Array<{
+    address: string;
+    type: string;
+    label: string;
+    isPrimary: boolean;
+  }>;
+  email: string; // Legacy primary email for backward compatibility
   phone: string;
   address: {
     line1: string;
@@ -110,20 +116,29 @@ const SalesInvoiceLineSchema = new Schema(
   { _id: false },
 );
 
+// Email snapshot sub-schema
+const EmailSnapshotSchema = new Schema({
+  address: { type: String, required: true },
+  type: { type: String, required: true },
+  label: { type: String, default: "" },
+  isPrimary: { type: Boolean, default: false },
+}, { _id: false });
+
 /**
  * ClientSnapshot - Cached client information for the document
  */
 const ClientSnapshotSchema = new Schema(
   {
     name: { type: String, required: true },
-    email: { type: String, default: "" },
+    emails: { type: [EmailSnapshotSchema], default: [] },
+    email: { type: String, default: "" }, // Legacy primary email
     phone: { type: String, default: "" },
     address: {
       line1: { type: String, default: "" },
       line2: { type: String, default: "" },
       city: { type: String, default: "" },
       provinceState: { type: String, default: "" },
-      country: { type: String, default: "South Africa" },
+      country: { type: String, trim: true, maxlength: 120, default: "South Africa" },
       postalCode: { type: String, default: "" },
     },
   },

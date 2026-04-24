@@ -145,7 +145,8 @@ export async function POST(req: Request) {
     // Create client snapshot
     const clientSnapshot = {
       name: client.name,
-      email: client.email || "",
+      emails: client.emails || [],
+      email: client.email || "", // Legacy primary email
       phone: client.phone || "",
       address: {
         line1: client.billing?.address?.line1 || "",

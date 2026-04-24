@@ -23,7 +23,13 @@ interface SalesQuoteLine {
 
 interface ClientSnapshot {
   name: string;
-  email: string;
+  emails: Array<{
+    address: string;
+    type: string;
+    label: string;
+    isPrimary: boolean;
+  }>;
+  email: string; // Legacy primary email for backward compatibility
   phone: string;
   address: {
     line1: string;
@@ -105,13 +111,22 @@ const SalesQuoteLineSchema = new Schema(
   { _id: false },
 );
 
+// Email snapshot sub-schema
+const EmailSnapshotSchema = new Schema({
+  address: { type: String, required: true },
+  type: { type: String, required: true },
+  label: { type: String, default: "" },
+  isPrimary: { type: Boolean, default: false },
+}, { _id: false });
+
 /**
  * ClientSnapshot - Cached client information for the document
  */
 const ClientSnapshotSchema = new Schema(
   {
     name: { type: String, required: true },
-    email: { type: String, default: "" },
+    emails: { type: [EmailSnapshotSchema], default: [] },
+    email: { type: String, default: "" }, // Legacy primary email
     phone: { type: String, default: "" },
     address: {
       line1: { type: String, default: "" },

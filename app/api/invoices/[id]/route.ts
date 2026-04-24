@@ -93,10 +93,11 @@ export async function PATCH(
       return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
     }
 
-    // Only allow updates if status is draft
-    if (existingInvoice.status !== "draft") {
+    // Only allow updates for editable statuses
+    const editableStatuses = ["draft", "issued"];
+    if (!editableStatuses.includes(existingInvoice.status)) {
       return NextResponse.json(
-        { error: "Only draft invoices can be edited" },
+        { error: `Invoices with status '${existingInvoice.status}' cannot be edited. Only draft and issued invoices can be modified.` },
         { status: 400 }
       );
     }
@@ -217,9 +218,11 @@ export async function DELETE(
       return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
     }
 
-    if (invoice.status !== "draft") {
+    // Allow deletion of draft and issued invoices (issued can be voided/cancelled instead)
+    const deletableStatuses = ["draft"];
+    if (!deletableStatuses.includes(invoice.status)) {
       return NextResponse.json(
-        { error: "Only draft invoices can be deleted" },
+        { error: `Invoices with status '${invoice.status}' cannot be deleted. Only draft invoices can be deleted.` },
         { status: 400 }
       );
     }

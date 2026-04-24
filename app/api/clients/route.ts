@@ -38,6 +38,30 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
 
+  // Process emails array if provided
+  let processedEmails = [];
+  if (body.emails && Array.isArray(body.emails)) {
+    processedEmails = body.emails.map((email: any) => ({
+      address: email.address?.trim().toLowerCase() || '',
+      type: email.type || 'primary',
+      label: email.label?.trim() || '',
+      isPrimary: email.isPrimary || false,
+    })).filter((email: any) => email.address); // Filter out empty emails
+
+    // Ensure at least one email is primary if emails exist
+    if (processedEmails.length > 0 && !processedEmails.some((e: any) => e.isPrimary)) {
+      processedEmails[0].isPrimary = true;
+    }
+  } else if (body.email) {
+    // Legacy support: convert single email to emails array
+    processedEmails = [{
+      address: body.email.trim().toLowerCase(),
+      type: 'primary',
+      label: '',
+      isPrimary: true,
+    }];
+  }
+
   // Generate unique client code automatically if not provided
   // If clientCode is provided in body, use it; otherwise generate
   // If a duplicate key error occurs, we'll retry with a new code
@@ -55,6 +79,7 @@ export async function POST(req: Request) {
 
       client = await Client.create({
         ...body,
+        emails: processedEmails,
         clientCode,
         companyId: session.companyId,
         createdBy: session.userId,

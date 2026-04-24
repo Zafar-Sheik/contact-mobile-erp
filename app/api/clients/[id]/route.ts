@@ -45,8 +45,34 @@ export async function PUT(
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
 
+  // Process emails array if provided
+  let processedEmails = undefined;
+  if (body.emails !== undefined) {
+    if (Array.isArray(body.emails)) {
+      processedEmails = body.emails.map((email: any) => ({
+        address: email.address?.trim().toLowerCase() || '',
+        type: email.type || 'primary',
+        label: email.label?.trim() || '',
+        isPrimary: email.isPrimary || false,
+      })).filter((email: any) => email.address); // Filter out empty emails
+
+      // Ensure at least one email is primary if emails exist
+      if (processedEmails.length > 0 && !processedEmails.some((e: any) => e.isPrimary)) {
+        processedEmails[0].isPrimary = true;
+      }
+    } else {
+      // If emails is set to null/empty, clear all emails
+      processedEmails = [];
+    }
+  }
+
   // Prevent clientCode from being changed (it's auto-generated)
-  const { clientCode: _, ...updateData } = body;
+  const { clientCode: _, emails: __, ...updateData } = body;
+
+  // Add processed emails to update data
+  if (processedEmails !== undefined) {
+    updateData.emails = processedEmails;
+  }
 
   const client = await Client.findOneAndUpdate(
     { _id: id, companyId: session.companyId, isDeleted: false },
