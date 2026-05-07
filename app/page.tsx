@@ -12,6 +12,7 @@ import {
   ClipboardList,
   MoreHorizontal,
   LogOut,
+  DollarSign,
 } from "lucide-react";
 import Link from "next/link";
 import { MobileMoreMenu, useMobileMoreMenu } from "@/components/mobile/mobile-more-menu";
@@ -44,10 +45,16 @@ const quickLinks = [
     color: "bg-purple-600",
   },
   {
-    label: "New Payments",
+    label: "New Creditors Payments",
     href: "/supplier-payments",
     icon: CreditCard,
     color: "bg-cyan-600",
+  },
+  {
+    label: "Record Debtor Payment",
+    href: "/bills",
+    icon: DollarSign,
+    color: "bg-green-600",
   },
   {
     label: "New GRV",

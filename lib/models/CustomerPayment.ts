@@ -81,7 +81,6 @@ CustomerPaymentSchema.index({ companyId: 1, paymentNumber: 1 }, { unique: true }
 CustomerPaymentSchema.index({ companyId: 1, clientId: 1, paymentDate: -1 });
 CustomerPaymentSchema.index({ companyId: 1, status: 1, paymentDate: -1 });
 
-export const CustomerPayment = 
-  (models.CustomerPayment?.name === "CustomerPayment") 
-    ? models.CustomerPayment 
-    : model("CustomerPayment", CustomerPaymentSchema);
+const CustomerPayment = models.CustomerPayment || model("CustomerPayment", CustomerPaymentSchema);
+
+export { CustomerPayment, CustomerPaymentSchema };

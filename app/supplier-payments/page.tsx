@@ -233,7 +233,7 @@ export default function SupplierPaymentsPage() {
       {/* Mobile Header */}
       <header className="bg-white border-b border-gray-200 px-4 py-4 sticky top-0 z-10">
         <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold text-gray-900">Supplier Payments</h1>
+          <h1 className="text-xl font-bold text-gray-900">Creditors Payments</h1>
           <Button size="icon" variant="ghost" onClick={openMore} className="h-10 w-10">
             <MoreHorizontal className="h-5 w-5" />
           </Button>
@@ -257,7 +257,7 @@ export default function SupplierPaymentsPage() {
       {!loading && !error && payments && payments.length > 0 && (
         <div className="px-4 py-3 bg-white border-b border-gray-100">
           <div className="bg-green-50 rounded-xl p-3 text-center max-w-md mx-auto">
-            <p className="text-xs text-green-600 font-medium">Total Payments</p>
+            <p className="text-xs text-green-600 font-medium">Total Creditors Payments</p>
             <p className="text-xl font-bold text-green-700">{formatCurrency(stats.total)}</p>
           </div>
         </div>
@@ -292,10 +292,10 @@ export default function SupplierPaymentsPage() {
               <DollarSign className="h-10 w-10 text-gray-400" />
             </div>
             <h3 className="text-lg font-semibold text-gray-900 mb-1">
-              {searchTerm ? "No payments found" : "No supplier payments yet"}
+              {searchTerm ? "No payments found" : "No creditors payments yet"}
             </h3>
             <p className="text-gray-500 text-sm mb-4">
-              {searchTerm ? "Try a different search term" : "Record your first supplier payment"}
+              {searchTerm ? "Try a different search term" : "Record your first creditors payment"}
             </p>
           </div>
         )}

@@ -43,7 +43,7 @@ export async function POST(
     });
 
     // Ensure stockItemId is a valid ObjectId
-    let itemId = line.stockItemId;
+    const itemId = line.stockItemId;
     if (!itemId) {
       console.error(`Line ${i + 1}: No stockItemId`);
       return NextResponse.json({ error: `Line ${i + 1}: No stock item selected` }, { status: 400 });

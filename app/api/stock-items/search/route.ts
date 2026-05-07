@@ -160,7 +160,7 @@ export async function GET(request: Request) {
         .limit(limit)
         .lean();
 
-      let itemsToFetch: Types.ObjectId[] = [];
+      const itemsToFetch: Types.ObjectId[] = [];
       
       if (recentUsage.length > 0) {
         // Get the IDs and create a map for sorting

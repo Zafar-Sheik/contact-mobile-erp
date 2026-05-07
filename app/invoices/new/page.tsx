@@ -29,6 +29,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { useApi, apiCreate } from "@/lib/hooks/use-api";
 import { MobileMoreMenu, useMobileMoreMenu } from "@/components/mobile/mobile-more-menu";
 import { StockItemSelector, StockItemSelectorTrigger, StockItemSelectorItem } from "@/components/erp/stock-item-selector";
+import { NumericInput } from "@/components/erp/money-amount";
 
 // Types
 interface Client {
@@ -67,8 +68,9 @@ interface InvoiceFormData {
   notes: string;
 }
 
+let lineCounter = 0;
 const createEmptyLine = (): InvoiceLine => ({
-  id: `temp-${Date.now()}-${Math.random()}`,
+  id: `temp-${++lineCounter}`,
   stockItemId: null,
   itemName: "",
   itemSku: "",
@@ -108,7 +110,7 @@ export default function NewInvoicePage() {
     lines: [createEmptyLine()],
     vatMode: "exclusive",
     vatRate: 15,
-    issueDate: new Date().toISOString().split("T")[0],
+    issueDate: "",
     dueDate: "",
     notes: "",
   });
@@ -119,6 +121,16 @@ export default function NewInvoicePage() {
   const acceptedQuotes = React.useMemo(() => {
     return quotes?.filter((q) => q.status === "accepted") || [];
   }, [quotes]);
+
+  // Set initial issue date
+  React.useEffect(() => {
+    if (!formData.issueDate) {
+      setFormData((prev) => ({
+        ...prev,
+        issueDate: new Date().toISOString().split("T")[0],
+      }));
+    }
+  }, []);
 
   // Set due date based on issue date when issue date changes
   React.useEffect(() => {
@@ -236,9 +248,9 @@ export default function NewInvoicePage() {
       return;
     }
 
-    const validLines = formData.lines.filter((l) => l.stockItemId);
+    const validLines = formData.lines.filter((l) => l.stockItemId || l.itemName.trim());
     if (validLines.length === 0) {
-      toast({ title: "Error", description: "Please add at least one line item", variant: "destructive" });
+      toast({ title: "Error", description: "Please add at least one line item with a stock item or custom name", variant: "destructive" });
       return;
     }
 
@@ -250,9 +262,9 @@ export default function NewInvoicePage() {
         sourceId: formData.sourceQuoteId || undefined,
         lines: validLines.map((line, index) => ({
           lineNo: index + 1,
-          stockItemId: line.stockItemId,
-          skuSnapshot: line.itemSku,
-          nameSnapshot: line.itemName,
+          stockItemId: line.stockItemId || null,
+          skuSnapshot: line.itemSku || "",
+          nameSnapshot: line.itemName || "",
           unit: "each",
           qty: line.qty,
           unitPriceCents: Math.round(line.unitPrice * 100),
@@ -269,7 +281,7 @@ export default function NewInvoicePage() {
       };
 
       await apiCreate("/api/invoices", invoiceData);
-      toast({ title: "Success", description: issueImmediately ? "Invoice created and issued" : "Invoice saved as draft" });
+      toast({ title: "Success", description: issueImmediately ? "Invoice created and issued" : "Invoice saved successfully" });
       router.push("/invoices");
     } catch (err) {
       toast({
@@ -406,37 +418,45 @@ export default function NewInvoicePage() {
                     )}
                   </div>
                   {!line.stockItemId && (
-                    <p className="text-xs text-red-500 mt-1">Please select a stock item</p>
+                    <div className="space-y-1 mt-2">
+                      <Label className="text-xs text-gray-500">Custom Item Name</Label>
+                      <Input
+                        value={line.itemName}
+                        onChange={(e) => updateLine(line.id, { itemName: e.target.value })}
+                        placeholder="Enter custom item name"
+                        className="h-11"
+                      />
+                      {!line.itemName.trim() && (
+                        <p className="text-xs text-red-500 mt-1">Please enter an item name</p>
+                      )}
+                    </div>
                   )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs text-gray-500">Qty</Label>
-                    <Input
-                      type="number"
-                      min="1"
-                      value={line.qty}
-                      onChange={(e) =>
-                        updateLine(line.id, { qty: Number(e.target.value) || 1 })
-                      }
-                      className="h-11"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs text-gray-500">Unit Price</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={line.unitPrice}
-                      onChange={(e) =>
-                        updateLine(line.id, { unitPrice: Number(e.target.value) || 0 })
-                      }
-                      className="h-11"
-                    />
-                  </div>
-                </div>
+                 <div className="grid grid-cols-2 gap-3">
+                   <div className="space-y-1">
+                     <Label className="text-xs text-gray-500">Qty</Label>
+                     <NumericInput
+                       min={1}
+                       value={line.qty}
+                       onChange={(e) =>
+                         updateLine(line.id, { qty: e })
+                       }
+                       className="h-11"
+                     />
+                   </div>
+                   <div className="space-y-1">
+                     <Label className="text-xs text-gray-500">Unit Price</Label>
+                     <NumericInput
+                       min={0}
+                       step={0.01}
+                       value={line.unitPrice}
+                       onChange={(e) =>
+                         updateLine(line.id, { unitPrice: e })}
+                       className="h-11"
+                     />
+                   </div>
+                 </div>
 
                 <div className="flex items-center gap-2">
                   <Checkbox
@@ -462,36 +482,20 @@ export default function NewInvoicePage() {
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base">VAT Settings</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label className="text-sm">VAT Mode</Label>
-              <Select
-                value={formData.vatMode}
-                onValueChange={(value) => setFormData((prev) => ({ ...prev, vatMode: value }))}
-              >
-                <SelectTrigger className="h-11">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="inclusive">VAT Inclusive</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-sm">VAT Rate (%)</Label>
-              <Input
-                type="number"
-                min="0"
-                max="100"
-                value={formData.vatRate}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, vatRate: Number(e.target.value) || 0 }))
-                }
-                className="h-11"
-              />
-            </div>
+           </CardHeader>
+           <CardContent className="space-y-4">
+             <div className="space-y-2">
+               <Label className="text-sm">VAT Rate (%)</Label>
+               <NumericInput
+                 min={0}
+                 max={100}
+                 value={formData.vatRate}
+                 onChange={(e) =>
+                   setFormData((prev) => ({ ...prev, vatRate: e }))
+                 }
+                 className="h-11"
+               />
+             </div>
           </CardContent>
         </Card>
 
@@ -571,11 +575,11 @@ export default function NewInvoicePage() {
       {/* Bottom Action Buttons */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 pb-safe z-20 space-y-2">
         <Button
-          onClick={() => handleSubmit(true)}
+          onClick={() => handleSubmit(false)}
           disabled={isSubmitting}
           className="w-full h-12 bg-green-600 hover:bg-green-700"
         >
-          {isSubmitting ? "Saving..." : "Save & Issue"}
+          {isSubmitting ? "Saving..." : "Save Invoice"}
         </Button>
         <div className="flex gap-2">
           <Button

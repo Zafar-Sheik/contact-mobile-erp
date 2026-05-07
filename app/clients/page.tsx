@@ -10,6 +10,7 @@ import {
   Phone,
   MoreHorizontal,
   UserPlus,
+  TrendingUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -59,6 +60,9 @@ interface Client {
   };
   notes?: string;
   isActive?: boolean;
+  // Balance in cents (what client owes the company)
+  // Positive = client owes money, Negative = company owes client (overpayment/credit)
+  balanceCents?: number;
 }
 
 interface ClientFormData {
@@ -126,28 +130,28 @@ export default function ClientsPage() {
     };
   }, [clients]);
 
-  const handleOpenDialog = (client?: Client) => {
-    if (client) {
-      setSelectedClient(client);
-      setFormData({
-        clientCode: client.clientCode || "",
-        name: client.name || "",
-        email: client.email || "",
-        phone: client.phone || "",
-        addressLine1: client.billing?.address?.line1 || "",
-        city: client.billing?.address?.city || "",
-        vatNumber: client.billing?.vatNumber || "",
-        creditLimit: client.credit?.creditLimitCents ? String(client.credit.creditLimitCents / 100) : "",
-        paymentTerms: client.credit?.paymentTermsDays ? String(client.credit.paymentTermsDays) : "",
-        notes: client.notes || "",
-        isActive: client.isActive ?? true,
-      });
-    } else {
-      setSelectedClient(null);
-      setFormData(initialFormData);
-    }
-    setIsDialogOpen(true);
-  };
+   const handleOpenDialog = (client?: Client) => {
+     if (client) {
+       setSelectedClient(client);
+       setFormData({
+         clientCode: client.clientCode || "",
+         name: client.name || "",
+         email: client.email || "",
+         phone: client.phone || "",
+         addressLine1: client.billing?.address?.line1 || "",
+         city: client.billing?.address?.city || "",
+          vatNumber: client.billing?.vatNumber || "",
+          creditLimit: client.credit?.creditLimitCents ? String(client.credit.creditLimitCents / 100) : "",
+          paymentTerms: client.credit?.paymentTermsDays ? String(client.credit.paymentTermsDays) : "",
+          notes: client.notes || "",
+          isActive: client.isActive ?? true,
+       });
+     } else {
+       setSelectedClient(null);
+       setFormData(initialFormData);
+     }
+     setIsDialogOpen(true);
+   };
 
   const handleCloseDialog = () => {
     setIsDialogOpen(false);
@@ -155,49 +159,49 @@ export default function ClientsPage() {
     setFormData(initialFormData);
   };
 
-  const handleSubmit = async () => {
-    setIsSubmitting(true);
-    try {
-      const clientData = {
-        ...(formData.clientCode && { clientCode: formData.clientCode }),
-        name: formData.name,
-        email: formData.email || undefined,
-        phone: formData.phone || undefined,
-        billing: {
-          address: {
-            line1: formData.addressLine1 || undefined,
-            city: formData.city || undefined,
+   const handleSubmit = async () => {
+     setIsSubmitting(true);
+     try {
+       const clientData = {
+         ...(formData.clientCode && { clientCode: formData.clientCode }),
+         name: formData.name,
+         email: formData.email || undefined,
+         phone: formData.phone || undefined,
+         billing: {
+           address: {
+             line1: formData.addressLine1 || undefined,
+             city: formData.city || undefined,
+           },
+           vatNumber: formData.vatNumber || undefined,
+         },
+          credit: {
+            creditLimitCents: formData.creditLimit ? Math.round(Number(formData.creditLimit) * 100) : undefined,
+            paymentTermsDays: formData.paymentTerms ? Number(formData.paymentTerms) : undefined,
           },
-          vatNumber: formData.vatNumber || undefined,
-        },
-        credit: {
-          creditLimitCents: formData.creditLimit ? Math.round(Number(formData.creditLimit) * 100) : undefined,
-          paymentTermsDays: formData.paymentTerms ? Number(formData.paymentTerms) : undefined,
-        },
-        notes: formData.notes || undefined,
-        isActive: formData.isActive,
-      };
+          notes: formData.notes || undefined,
+         isActive: formData.isActive,
+       };
 
-      if (selectedClient) {
-        await apiUpdate<Client, typeof clientData>("/api/clients", selectedClient._id, clientData);
-        toast({ title: "Success", description: "Client updated successfully" });
-      } else {
-        await apiCreate<Client, typeof clientData>("/api/clients", clientData);
-        toast({ title: "Success", description: "Client created successfully" });
-      }
+       if (selectedClient) {
+         await apiUpdate<Client, typeof clientData>("/api/clients", selectedClient._id, clientData);
+         toast({ title: "Success", description: "Client updated successfully" });
+       } else {
+         await apiCreate<Client, typeof clientData>("/api/clients", clientData);
+         toast({ title: "Success", description: "Client created successfully" });
+       }
 
-      handleCloseDialog();
-      refetch();
-    } catch (err) {
-      toast({
-        title: "Error",
-        description: err instanceof Error ? err.message : "An error occurred",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+       handleCloseDialog();
+       refetch();
+     } catch (err) {
+       toast({
+         title: "Error",
+         description: err instanceof Error ? err.message : "An error occurred",
+         variant: "destructive",
+       });
+     } finally {
+       setIsSubmitting(false);
+     }
+   };
 
   const handleDelete = async () => {
     if (!selectedClient) return;
@@ -242,9 +246,11 @@ export default function ClientsPage() {
             placeholder="Search clients..."
             className="pl-10 h-12 bg-gray-50 border-gray-200 rounded-xl"
           />
-        </div>
-      </div>
+             </div>
 
+
+
+           </div>
       {/* Main Content */}
       <main className="p-4 pb-24">
         {/* Loading State */}
@@ -308,49 +314,59 @@ export default function ClientsPage() {
                   </Badge>
                 </div>
 
-                {/* Contact Info */}
-                <div className="pl-12 space-y-1">
-                  {client.email && (
-                    <p className="text-sm text-gray-600 flex items-center gap-2">
-                      <Mail className="h-3 w-3 text-gray-400" />
-                      {client.email}
-                    </p>
-                  )}
-                  {client.phone && (
-                    <p className="text-sm text-gray-600 flex items-center gap-2">
-                      <Phone className="h-3 w-3 text-gray-400" />
-                      {client.phone}
-                    </p>
-                  )}
-                </div>
+                 {/* Contact Info */}
+                 <div className="pl-12 space-y-1">
+                   {client.email && (
+                     <p className="text-sm text-gray-600 flex items-center gap-2">
+                       <Mail className="h-3 w-3 text-gray-400" />
+                       {client.email}
+                     </p>
+                   )}
+                   {client.phone && (
+                     <p className="text-sm text-gray-600 flex items-center gap-2">
+                       <Phone className="h-3 w-3 text-gray-400" />
+                       {client.phone}
+                     </p>
+                   )}
+                   {/* Balance Display */}
+                   <p className="text-sm font-medium flex items-center gap-2">
+                      <TrendingUp className={`h-3 w-3 ${client.balanceCents! >= 0 ? "text-red-600" : "text-green-600"}`} />
+                     <span className={client.balanceCents! >= 0 ? "text-red-600" : "text-green-600"}>
+                       {client.balanceCents! >= 0 ? "Owes: " : "Credit: "}
+                        R {Math.abs(client.balanceCents || 0) / 100}
+                     </span>
+                   </p>
+                 </div>
 
-                {/* Actions */}
-                <div className="flex items-center justify-end gap-1 mt-3 pt-3 border-t border-gray-100">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-9 w-9"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleOpenDialog(client);
-                    }}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-9 w-9 text-red-500"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedClient(client);
-                      setIsDeleteDialogOpen(true);
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
+                 {/* Actions */}
+                 <div className="flex items-center justify-end gap-1 mt-3 pt-3 border-t border-gray-100">
+                   <Button
+                     variant="ghost"
+                     size="icon"
+                     className="h-9 w-9"
+                     onClick={(e) => {
+                       e.stopPropagation();
+                       handleOpenDialog(client);
+                     }}
+                   >
+                     <Edit className="h-4 w-4" />
+                   </Button>
+                   <Button
+                     variant="ghost"
+                     size="icon"
+                     className="h-9 w-9 text-red-500"
+                     onClick={(e) => {
+                       e.stopPropagation();
+                       setSelectedClient(client);
+                       setIsDeleteDialogOpen(true);
+                     }}
+                   >
+                     <Trash2 className="h-4 w-4" />
+                   </Button>
+                 </div>
+                 
+
+               </div>
             ))}
           </div>
         )}
@@ -452,7 +468,7 @@ export default function ClientsPage() {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label htmlFor="creditLimit">Credit Limit (ZAR)</Label>
+                 <Label htmlFor="creditLimit">Credit Limit (R)</Label>
                 <Input
                   id="creditLimit"
                   type="number"

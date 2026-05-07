@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import {
   Search,
   FileText,
@@ -74,6 +75,7 @@ const getStatusColors = (status: string) => {
 };
 
 export default function InvoicesPage() {
+  const router = useRouter();
   const { isOpen: isMoreOpen, open: openMore, close: closeMore } = useMobileMoreMenu();
 
   // API hooks
@@ -196,10 +198,10 @@ export default function InvoicesPage() {
             {filteredInvoices.map((invoice) => {
               const statusColors = getStatusColors(invoice.status);
               return (
-                <Link
+                <button
                   key={invoice._id}
-                  href={`/invoices/${invoice._id}`}
-                  className="block bg-white rounded-2xl p-4 shadow-sm border border-gray-100 active:scale-[0.99] transition-transform"
+                  onClick={() => router.push(`/invoices/${invoice._id}`)}
+                  className="block w-full text-left bg-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:bg-gray-50 transition-colors"
                 >
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex items-center gap-3">
@@ -233,7 +235,7 @@ export default function InvoicesPage() {
                       )}
                     </div>
                   </div>
-                </Link>
+                </button>
               );
             })}
           </div>

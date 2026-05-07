@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { dbConnect } from "@/lib/db";
 import { Client, generateClientCode } from "@/lib/models/Client";
 import { requireAuth, requireRole } from "@/lib/auth/rbac";
+import { SalesInvoice } from "@/lib/models/SalesInvoice";
 
 export const runtime = "nodejs";
 
@@ -18,7 +19,34 @@ export async function GET() {
       .sort({ name: 1 })
       .lean();
 
-    return NextResponse.json({ ok: true, data: clients });
+    // Calculate actual balances for each client based on outstanding invoices
+    const clientsWithBalances = await Promise.all(
+      clients.map(async (client) => {
+        // Get outstanding invoices for this client
+        const outstandingInvoices = await SalesInvoice.find({
+          clientId: client._id,
+          companyId: session.companyId,
+          isDeleted: false,
+          status: { $in: ["issued", "partially_paid", "overdue"] }
+        })
+          .select("balanceDueCents")
+          .lean();
+
+        // Calculate actual balance from outstanding invoices
+        const calculatedBalanceCents = outstandingInvoices.reduce(
+          (sum, invoice) => sum + (invoice.balanceDueCents || 0),
+          0
+        );
+
+        return {
+          ...client,
+          // Override stored balance with calculated one for accuracy
+          balanceCents: calculatedBalanceCents
+        };
+      })
+    );
+
+    return NextResponse.json({ ok: true, data: clientsWithBalances });
   } catch (error: any) {
     console.error("Error fetching clients:", error);
     return NextResponse.json(
@@ -53,13 +81,15 @@ export async function POST(req: Request) {
         clientCode = await generateClientCode(session.companyId);
       }
 
-      client = await Client.create({
-        ...body,
-        clientCode,
-        companyId: session.companyId,
-        createdBy: session.userId,
-        updatedBy: session.userId,
-      });
+       client = await Client.create({
+         ...body,
+         clientCode,
+         companyId: session.companyId,
+         createdBy: session.userId,
+         updatedBy: session.userId,
+         // Set opening balance from form data (defaults to 0 if not provided)
+         balanceCents: body.balanceCents || 0,
+       });
       break; // Success
     } catch (error: any) {
       // Check if it's a duplicate key error
