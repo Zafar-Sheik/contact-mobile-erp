@@ -122,7 +122,7 @@ export function parseNumber(value: unknown): number | null {
   }
   
   // Remove whitespace
-  let trimmed = value.trim();
+  const trimmed = value.trim();
   if (trimmed === '') {
     return null;
   }

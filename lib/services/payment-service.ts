@@ -388,7 +388,7 @@ export async function autoAllocatePayment(
     .lean();
 
   // Sort based on method
-  let sortedBills = [...bills];
+  const sortedBills = [...bills];
   switch (method) {
     case "FIFO":
       sortedBills.sort((a, b) => {

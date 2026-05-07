@@ -1,6 +1,75 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
+// Numeric input validation function
+const validateNumericInput = (value: string): string => {
+  // Allow empty string, numbers, and single decimal point
+  if (value === "") return value;
+
+  // Remove any characters that aren't digits or decimal point
+  const cleaned = value.replace(/[^0-9.]/g, "");
+
+  // Ensure only one decimal point
+  const parts = cleaned.split(".");
+  if (parts.length > 2) {
+    return parts[0] + "." + parts.slice(1).join("");
+  }
+
+  return cleaned;
+};
+
+// Reusable NumericInput component
+export function NumericInput({
+  value,
+  onChange,
+  className,
+  placeholder,
+  min,
+  max,
+  step,
+  ...props
+}: {
+  value: number | string;
+  onChange: (value: number) => void;
+  className?: string;
+  placeholder?: string;
+  min?: number;
+  max?: number;
+  step?: number;
+} & Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'type'>) {
+  const [inputValue, setInputValue] = React.useState(value.toString());
+
+  React.useEffect(() => {
+    setInputValue(value.toString());
+  }, [value]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const validatedValue = validateNumericInput(e.target.value);
+    setInputValue(validatedValue);
+
+    // Convert to number for onChange callback
+    const numValue = parseFloat(validatedValue) || 0;
+
+    // Apply min/max constraints if provided
+    let finalValue = numValue;
+    if (min !== undefined && finalValue < min) finalValue = min;
+    if (max !== undefined && finalValue > max) finalValue = max;
+
+    onChange(finalValue);
+  };
+
+  return (
+    <input
+      type="text"
+      value={inputValue}
+      onChange={handleChange}
+      placeholder={placeholder}
+      className={cn("w-full px-3 py-2 border rounded-md", className)}
+      {...props}
+    />
+  );
+}
+
 interface MoneyAmountProps {
   cents: number;
   className?: string;
@@ -60,9 +129,9 @@ export function MoneyAmount({
 }
 
 // For inline display with currency symbol
-export function MoneyInput({ 
-  value, 
-  onChange, 
+export function MoneyInput({
+  value,
+  onChange,
   className,
   placeholder = "0.00",
 }: {
@@ -71,23 +140,15 @@ export function MoneyInput({
   className?: string;
   placeholder?: string;
 }) {
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const inputValue = e.target.value;
-    // Allow empty, decimal numbers
-    const numValue = parseFloat(inputValue) || 0;
-    onChange(numValue);
-  };
-
   return (
     <div className={cn("relative", className)}>
       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">R</span>
-      <input
-        type="number"
-        step="0.01"
+      <NumericInput
         value={value}
-        onChange={handleChange}
+        onChange={onChange}
         placeholder={placeholder}
-        className="w-full pl-7 pr-3 py-2 border rounded-md"
+        className="pl-7 pr-3 py-2"
+        step={0.01}
       />
     </div>
   );

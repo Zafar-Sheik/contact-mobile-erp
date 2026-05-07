@@ -27,7 +27,49 @@ export async function GET(
     return NextResponse.json({ error: "Client not found" }, { status: 404 });
   }
 
-  return NextResponse.json({ data: client });
+  // Get outstanding invoices for this client
+  const outstandingInvoices = await SalesInvoice.find({
+    clientId: id,
+    companyId: session.companyId,
+    isDeleted: false,
+    status: { $in: ["issued", "partially_paid", "overdue"] } // Only include invoices that are not fully paid
+  })
+    .select("invoiceNumber status issueDate dueDate totals totalCents amountPaidCents balanceDueCents")
+    .sort({ issueDate: -1 })
+    .lean();
+
+  // Calculate totals from actual invoice data
+  const totalOutstanding = outstandingInvoices.reduce((sum, invoice) => sum + (invoice.balanceDueCents || 0), 0);
+  const totalOverdue = outstandingInvoices.reduce((sum, invoice) => {
+    const isOverdue = new Date(invoice.dueDate) < new Date() &&
+                      invoice.status !== "paid" &&
+                      invoice.status !== "cancelled" &&
+                      invoice.status !== "draft";
+    return sum + (isOverdue ? (invoice.balanceDueCents || 0) : 0);
+  }, 0);
+
+  // Calculate actual balance from invoices (ignore stored balanceCents to prevent discrepancies)
+  const calculatedBalanceCents = totalOutstanding;
+
+  return NextResponse.json({
+    data: {
+      ...client,
+      // Override the stored balanceCents with calculated value to ensure accuracy
+      balanceCents: calculatedBalanceCents,
+      outstandingInvoices: outstandingInvoices.map(invoice => ({
+        ...invoice,
+        // Convert cents to display amounts
+        total: invoice.totalCents / 100,
+        amountPaid: invoice.amountPaidCents / 100,
+        balanceDue: invoice.balanceDueCents / 100
+      })),
+      summary: {
+        totalOutstanding: totalOutstanding / 100,
+        totalOverdue: totalOverdue / 100,
+        invoiceCount: outstandingInvoices.length
+      }
+    }
+  });
 }
 
 export async function PUT(

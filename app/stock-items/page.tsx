@@ -721,7 +721,7 @@ export default function StockItemsPage() {
               <Input
                 id="sku"
                 value={formData.sku}
-                onChange={(e) => setFormData({ ...formData, sku: e.target.value.trim() })}
+                onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
                 placeholder="SKU-001"
               />
             </div>
@@ -731,7 +731,7 @@ export default function StockItemsPage() {
               <Input
                 id="name"
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value.trim() })}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="Item name"
               />
             </div>

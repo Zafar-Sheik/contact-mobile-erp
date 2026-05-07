@@ -227,7 +227,7 @@ export async function peekNextNumber(
     prefix = config.prefix;
   }
   
-  let counter = await Counter.findOne({
+  const counter = await Counter.findOne({
     companyId,
     key: counterKey,
     isDeleted: false,

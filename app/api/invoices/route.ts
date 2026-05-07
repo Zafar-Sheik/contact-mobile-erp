@@ -158,12 +158,42 @@ export async function POST(req: Request) {
     };
 
     // Generate invoice number using INV counter
+    // First, ensure counter is up to date with existing invoices
+    const existingInvoices = await SalesInvoice.find({
+      companyId: session.companyId,
+      isDeleted: false
+    }).select('invoiceNumber').sort({ invoiceNumber: -1 }).limit(1).lean();
+
+    let nextNumber = 1;
+    if (existingInvoices.length > 0) {
+      const lastInvoiceNumber = existingInvoices[0].invoiceNumber;
+      const match = lastInvoiceNumber.match(/INV-(\d+)/);
+      if (match) {
+        nextNumber = parseInt(match[1]) + 1;
+      }
+    }
+
+    // Update or create counter
     const counter = await Counter.findOneAndUpdate(
       { companyId: session.companyId, key: "INV" },
-      { $inc: { nextNumber: 1 } },
+      { $max: { nextNumber: nextNumber } },
       { upsert: true, new: true }
     );
-    const sequence = String(counter.nextNumber).padStart(5, "0");
+
+    // If counter was lower than existing invoices, increment it
+    if (counter.nextNumber < nextNumber) {
+      counter.nextNumber = nextNumber;
+      await counter.save();
+    }
+
+    // Now increment for this new invoice
+    const finalCounter = await Counter.findOneAndUpdate(
+      { companyId: session.companyId, key: "INV" },
+      { $inc: { nextNumber: 1 } },
+      { new: true }
+    );
+
+    const sequence = String(finalCounter.nextNumber).padStart(5, "0");
     const invoiceNumber = `INV-${sequence}`;
 
     // Process lines with validation
@@ -213,6 +243,13 @@ export async function POST(req: Request) {
     };
 
     const invoice = await SalesInvoice.create(invoiceData);
+
+    // Update client's balance when invoice is created (add invoice total to what client owes)
+    await Client.findByIdAndUpdate(
+      client._id,
+      { $inc: { balanceCents: totals.totalCents } },
+      { new: true }
+    );
 
     // Populate client for response
     await invoice.populate("clientId", "name email phone");

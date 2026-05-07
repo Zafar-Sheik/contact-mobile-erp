@@ -26,6 +26,13 @@ const ClientSchema = new Schema(
       paymentTermsDays: { type: Number, default: 0, min: 0 },
     },
 
+    // Opening/running balance - what the client owes the company (in cents)
+    // Positive = client owes money, Negative = company owes client (overpayment/credit)
+    balanceCents: { type: Number, default: 0 },
+
+    // Unallocated payment funds available for future invoice allocations (in cents)
+    unallocatedCents: { type: Number, default: 0, min: 0 },
+
     notes: { type: String, default: "", maxlength: 5000 },
     isActive: { type: Boolean, default: true, index: true },
   }),
@@ -36,6 +43,95 @@ ClientSchema.plugin(softDeletePlugin);
 
 ClientSchema.index({ companyId: 1, name: 1 });
 ClientSchema.index({ companyId: 1, clientCode: 1 }, { unique: true });
+
+// Instance methods
+ClientSchema.methods.calculateBalance = async function() {
+  const SalesInvoice = (await import("./SalesInvoice")).SalesInvoice;
+  const CustomerPayment = (await import("./CustomerPayment")).CustomerPayment;
+
+  // Sum all invoice totals (excluding cancelled)
+  const invoices = await SalesInvoice.find({
+    clientId: this._id,
+    isDeleted: false,
+    status: { $ne: "cancelled" },
+  }).select("totals.totalCents amountPaidCents balanceDueCents").lean();
+
+  const totalInvoiced = invoices.reduce((sum, inv) => sum + (inv.totals?.totalCents || 0), 0);
+  const totalPaid = invoices.reduce((sum, inv) => sum + (inv.amountPaidCents || 0), 0);
+
+  // Calculate outstanding balance (what client owes)
+  const balanceCents = totalInvoiced - totalPaid;
+
+  // Get unallocated payments
+  const payments = await CustomerPayment.find({
+    clientId: this._id,
+    isDeleted: false,
+    status: "posted",
+  }).select("unallocatedCents").lean();
+
+  const unallocatedCents = payments.reduce((sum, pay) => sum + (pay.unallocatedCents || 0), 0);
+
+  // Update the client record
+  this.balanceCents = balanceCents;
+  this.unallocatedCents = unallocatedCents;
+
+  return {
+    balanceCents,
+    unallocatedCents,
+    totalInvoiced,
+    totalPaid,
+  };
+};
+
+ClientSchema.methods.getBalanceSummary = async function() {
+  const balance = await this.calculateBalance();
+
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
+  const sixtyDaysAgo = new Date(now.getTime() - (60 * 24 * 60 * 60 * 1000));
+  const ninetyDaysAgo = new Date(now.getTime() - (90 * 24 * 60 * 60 * 1000));
+
+  const SalesInvoice = (await import("./SalesInvoice")).SalesInvoice;
+
+  // Get aging breakdown
+  const invoices = await SalesInvoice.find({
+    clientId: this._id,
+    isDeleted: false,
+    status: { $in: ["issued", "partially_paid", "paid"] },
+  }).select("balanceDueCents dueDate issueDate").lean();
+
+  let currentAmount = 0;
+  let days31To60 = 0;
+  let days61To90 = 0;
+  let days91Plus = 0;
+
+  for (const invoice of invoices) {
+    const outstanding = invoice.balanceDueCents || 0;
+    if (outstanding <= 0) continue;
+
+    const dueDate = invoice.dueDate ? new Date(invoice.dueDate) : new Date(invoice.issueDate || now);
+
+    if (dueDate >= thirtyDaysAgo) {
+      currentAmount += outstanding;
+    } else if (dueDate >= sixtyDaysAgo) {
+      days31To60 += outstanding;
+    } else if (dueDate >= ninetyDaysAgo) {
+      days61To90 += outstanding;
+    } else {
+      days91Plus += outstanding;
+    }
+  }
+
+  return {
+    ...balance,
+    currentAmount,
+    days31To60,
+    days61To90,
+    days91Plus,
+    totalOwing: Math.max(0, balance.balanceCents), // Positive balance = client owes
+    availableCredit: Math.max(0, -balance.balanceCents), // Negative balance = company owes
+  };
+};
 
 /**
  * Generate the next client code for a company

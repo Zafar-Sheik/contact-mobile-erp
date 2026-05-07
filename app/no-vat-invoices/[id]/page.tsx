@@ -224,12 +224,12 @@ const getPaymentMethodLabel = (method: string) => {
   return labels[method] || method;
 };
 
-export default function InvoiceDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default function NoVatInvoiceDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const { toast } = useToast();
   const { id } = use(params);
 
-  console.log('Invoice detail page loaded for ID:', id);
+  console.log('No-VAT invoice detail page loaded for ID:', id);
   const [invoice, setInvoice] = React.useState<Invoice | null>(null);
   const [company, setCompany] = React.useState<Company | null>(null);
   const [loading, setLoading] = React.useState(true);
@@ -269,19 +269,19 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
 
         if (!res.ok) {
           toast({ title: "Error", description: data.error || `HTTP ${res.status}`, variant: "destructive" });
-          router.push("/invoices");
+          router.push("/no-vat-invoices");
           return;
         }
 
         if (data.error) {
           toast({ title: "Error", description: data.error, variant: "destructive" });
-          router.push("/invoices");
+          router.push("/no-vat-invoices");
           return;
         }
 
         if (!data.data) {
           toast({ title: "Error", description: "Invoice not found", variant: "destructive" });
-          router.push("/invoices");
+          router.push("/no-vat-invoices");
           return;
         }
 
@@ -294,7 +294,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
         }
       } catch (error) {
         toast({ title: "Error", description: "Failed to fetch invoice", variant: "destructive" });
-        router.push("/invoices");
+        router.push("/no-vat-invoices");
         return;
       } finally {
         setLoading(false);
@@ -370,7 +370,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
         toast({ title: "Error", description: data.error, variant: "destructive" });
       } else {
         toast({ title: "Success", description: "Invoice deleted" });
-        router.push("/invoices");
+        router.push("/no-vat-invoices");
       }
     } catch (error) {
       toast({ title: "Error", description: "Failed to delete invoice", variant: "destructive" });
@@ -410,13 +410,13 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
   // Prepare document data for print/export
   const documentData = React.useMemo(() => {
     if (!invoice) return null;
-    
+
     const client = typeof invoice.clientId === 'object' ? invoice.clientId : null;
     const clientData = client || { name: 'Unknown Client' };
-    
+
     // Use company data if available, otherwise use defaults
     const companyProfile = company?.profile;
-    
+
     return {
       documentNumber: invoice.invoiceNumber,
       documentType: 'invoice' as const,
@@ -435,8 +435,8 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
         total: line.lineTotalCents,
       })),
       subtotal: invoice.totals.subTotalCents,
-      vatRate: invoice.vatRateBps / 100,
-      vatAmount: invoice.totals.vatTotalCents,
+      vatRate: 0, // No VAT for no-vat-invoices
+      vatAmount: 0, // No VAT for no-vat-invoices
       total: invoice.totals.totalCents,
       notes: invoice.notes,
       company: {
@@ -444,7 +444,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
         tradingName: companyProfile?.tradingName || companyProfile?.legalName || 'Your Company',
         registrationNumber: companyProfile?.registrationNumber,
         vatNumber: companyProfile?.vatNumber,
-        isVatRegistered: companyProfile?.isVatRegistered,
+        isVatRegistered: false, // No VAT registration for no-vat-invoices
         email: companyProfile?.email,
         phone: companyProfile?.phone,
         address: companyProfile?.address,
@@ -478,7 +478,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => router.push("/invoices")}>
+          <Button variant="ghost" size="icon" onClick={() => router.push("/no-vat-invoices")}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
@@ -604,7 +604,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
           </CardContent>
         </Card>
 
-        {/* Summary */}
+        {/* Summary - No VAT section for no-vat-invoices */}
         <Card>
           <CardHeader>
             <CardTitle>Summary</CardTitle>
@@ -614,12 +614,6 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
               <span className="text-muted-foreground">Subtotal</span>
               <span>{formatCurrency(invoice.totals?.subTotalCents || 0)}</span>
             </div>
-            {invoice.vatMode !== "none" && (
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">VAT ({invoice.vatRateBps / 100}%)</span>
-                <span>{formatCurrency(invoice.totals?.vatTotalCents || 0)}</span>
-              </div>
-            )}
             <Separator />
             <div className="flex justify-between font-bold text-lg">
               <span>Total</span>

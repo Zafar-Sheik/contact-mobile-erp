@@ -506,11 +506,11 @@ export default function NewNoVatInvoicePage() {
 
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 pb-safe z-20 space-y-2">
         <Button
-          onClick={() => handleSubmit(true)}
+          onClick={() => handleSubmit(false)}
           disabled={isSubmitting}
           className="w-full h-12 bg-green-600 hover:bg-green-700"
         >
-          {isSubmitting ? "Saving..." : "Save & Issue"}
+          {isSubmitting ? "Saving..." : "Save Invoice"}
         </Button>
         <div className="flex gap-2">
           <Button

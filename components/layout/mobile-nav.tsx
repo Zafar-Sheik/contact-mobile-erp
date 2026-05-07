@@ -40,14 +40,17 @@ const salesNavigation = [
   { name: "Clients", href: "/clients", icon: Users },
   { name: "Sales Quotes", href: "/sales-quotes", icon: ClipboardList },
   { name: "Invoices", href: "/sales-invoices", icon: Receipt },
-  { name: "Payments", href: "/customer-payments", icon: DollarSign },
 ];
 
 const purchaseNavigation = [
   { name: "Suppliers", href: "/suppliers", icon: Building2 },
   { name: "Purchase Orders", href: "/purchase-orders", icon: ShoppingCart },
-  { name: "Supplier Invoices", href: "/supplier-invoices", icon: Receipt },
-  { name: "Supplier Payments", href: "/supplier-payments", icon: DollarSign },
+  { name: "Supplier Bills", href: "/supplier-bills", icon: Receipt },
+  { name: "Creditors Payments", href: "/supplier-payments", icon: DollarSign },
+];
+
+const billsNavigation = [
+  { name: "Debtor Payments", href: "/bills", icon: DollarSign },
 ];
 
 const fleetNavigation = [
@@ -151,14 +154,23 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
             onItemClick={onClose}
           />
 
-          <Separator className="my-4" />
+           <Separator className="my-4" />
 
-          <NavSection
-            title="Purchases"
-            items={purchaseNavigation}
-            pathname={pathname}
-            onItemClick={onClose}
-          />
+            <NavSection
+              title="Debtor Payments"
+              items={billsNavigation}
+              pathname={pathname}
+              onItemClick={onClose}
+            />
+
+           <Separator className="my-4" />
+
+           <NavSection
+             title="Purchases"
+             items={purchaseNavigation}
+             pathname={pathname}
+             onItemClick={onClose}
+           />
 
           <Separator className="my-4" />
 

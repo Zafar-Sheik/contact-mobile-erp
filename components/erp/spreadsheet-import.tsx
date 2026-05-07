@@ -293,7 +293,7 @@ export function SpreadsheetImport({ open, onOpenChange, onImportComplete }: Spre
       STOCK_ITEM_FIELDS.forEach(field => {
         const sourceCol = mappingObj[field.key];
         if (sourceCol) {
-          let value = row[sourceCol];
+          const value = row[sourceCol];
           
           // Parse based on field type
           if (field.type === "number") {
