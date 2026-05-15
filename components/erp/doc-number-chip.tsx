@@ -2,7 +2,7 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 // Document types for DocNumberChip
-export type DocType = "po" | "grv" | "bill" | "payment" | "quote" | "invoice" | "supplier" | "client";
+export type DocType = "po" | "grv" | "bill" | "quote" | "invoice" | "supplier" | "client";
 
 interface DocNumberChipProps {
   type: DocType;
@@ -16,7 +16,6 @@ const docTypeConfig: Record<DocType, { bg: string; text: string; label: string }
   po: { bg: "bg-purple-100", text: "text-purple-700", label: "PO" },
   grv: { bg: "bg-blue-100", text: "text-blue-700", label: "GRV" },
   bill: { bg: "bg-orange-100", text: "text-orange-700", label: "BILL" },
-  payment: { bg: "bg-green-100", text: "text-green-700", label: "PAY" },
   quote: { bg: "bg-cyan-100", text: "text-cyan-700", label: "QUOTE" },
   invoice: { bg: "bg-indigo-100", text: "text-indigo-700", label: "INV" },
   supplier: { bg: "bg-gray-100", text: "text-gray-700", label: "SUP" },

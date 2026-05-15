@@ -10,8 +10,7 @@ export type DocumentType =
   | "payment"
   | "po"        // Purchase Order
   | "grv"       // Goods Received Voucher
-  | "bill"      // Supplier Bill
-  | "supplier_payment"; // Supplier Payment
+  | "bill";     // Supplier Bill
 
 /**
  * Document type configuration
@@ -58,11 +57,6 @@ function getDocumentConfig(type: DocumentType): DocumentConfig {
       prefix: "BILL-",
       padding: 6,  // BILL-000789
     },
-    supplier_payment: {
-      key: "PAY",
-      prefix: "PAY-",
-      padding: 6,  // PAY-000321
-    },
   };
   
   return configs[type];
@@ -78,7 +72,6 @@ function getDocumentConfig(type: DocumentType): DocumentConfig {
  * - PO: PO-000123
  * - GRV: GRV-000456
  * - Bill: BILL-000789
- * - Payment: PAY-000321
  */
 export async function generateDocumentNumber(
   companyId: string,
@@ -157,14 +150,13 @@ export function parseDocumentNumber(docNumber: string): {
     };
   }
   
-  // Try P2P format: PO-000123, GRV-000456, BILL-000789, PAY-000321
+  // Try P2P format: PO-000123, GRV-000456, BILL-000789
   const p2pMatch = docNumber.match(/^([A-Z]+)-(\d+)$/);
   if (p2pMatch) {
     const typeMap: Record<string, DocumentType> = {
       "PO": "po",
       "GRV": "grv",
       "BILL": "bill",
-      "PAY": "supplier_payment",
     };
     
     return {
@@ -191,7 +183,7 @@ export function isValidDocumentNumber(
   if (expectedType) {
     const config = getDocumentConfig(expectedType);
     const expectedPrefix = expectedType === "po" || expectedType === "grv" || 
-                          expectedType === "bill" || expectedType === "supplier_payment"
+                          expectedType === "bill"
       ? config.prefix.replace("-", "")
       : config.prefix.replace("-YYYY-", "");
     

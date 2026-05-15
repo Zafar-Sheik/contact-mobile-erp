@@ -4,13 +4,12 @@
  * This module defines the canonical relationships and shared interfaces
  * for the Procure-to-Pay workflow:
  * 
- * Supplier → PO → GRV → SupplierBill → SupplierPayment
+ * Supplier → PO → GRV → SupplierBill
  * 
  * Document Flow:
  * 1. Purchase Order (PO) - Order placed with supplier
  * 2. Goods Received Voucher (GRV) - Receipt of goods (can link to PO)
  * 3. Supplier Bill (Supplier Invoice) - Invoice from supplier (links to GRVs)
- * 4. Supplier Payment - Payment made to supplier (applies to Bills)
  */
 
 import { Types } from "mongoose";
@@ -24,7 +23,7 @@ import { Types } from "mongoose";
 export interface P2PDocumentHeader {
   // Identification
   _id: Types.ObjectId;
-  documentNumber: string;  // Human-readable: PO-000123, GRV-000456, BILL-000789, PAY-000321
+  documentNumber: string;  // Human-readable: PO-000123, GRV-000456, BILL-000789
   
   // Company & Supplier
   companyId: Types.ObjectId;
@@ -62,9 +61,8 @@ export interface P2PDocumentHeader {
 export type POStatus = "Draft" | "Issued" | "PartiallyReceived" | "FullyReceived" | "Closed" | "Cancelled";
 export type GRVStatus = "Draft" | "Posted" | "Cancelled";
 export type SupplierBillStatus = "Draft" | "Posted" | "PartiallyPaid" | "Paid" | "Voided";
-export type SupplierPaymentStatus = "Draft" | "Posted" | "Reversed";
 
-export type P2PStatus = POStatus | GRVStatus | SupplierBillStatus | SupplierPaymentStatus;
+export type P2PStatus = POStatus | GRVStatus | SupplierBillStatus;
 
 // ============================================================================
 // PURCHASE ORDER TYPES
@@ -227,39 +225,6 @@ export interface SupplierBill extends P2PDocumentHeader {
 }
 
 // ============================================================================
-// SUPPLIER PAYMENT TYPES
-// ============================================================================
-
-export interface SupplierPaymentAllocation {
-  supplierBillId: Types.ObjectId;
-  billNumber?: string;  // Populated reference
-  amountCents: number;
-}
-
-export interface SupplierPayment extends P2PDocumentHeader {
-  documentNumber: string;  // paymentNumber
-  paymentNumber: string;  // Alias for documentNumber
-  status: SupplierPaymentStatus;
-  
-  // References - Payment always belongs to ONE supplier
-  supplierId: Types.ObjectId;
-  
-  // Payment details
-  paymentDate: Date;
-  method: "Cash" | "EFT" | "Card" | "Cheque" | "Other";
-  reference?: string;
-  amountCents: number;
-  
-  // Allocations - Can apply to multiple bills (all must be same supplier)
-  allocations: SupplierPaymentAllocation[];
-  unallocatedCents: number;
-  
-  // Status dates
-  postedAt?: Date;
-  reversedAt?: Date;
-}
-
-// ============================================================================
 // STOCK ITEM SNAPSHOT
 // Captures stock item state at time of transaction for audit trail
 // ============================================================================
@@ -318,72 +283,10 @@ export interface ValidateBillToGRVsResult extends RelationshipValidationResult {
 }
 
 /**
- * Check if a Supplier Payment can be linked to Bills
- * Rules:
- * - All Bills must have same supplier as payment
- * - Bills must be Posted (not Draft or Voided)
- * - Cannot link Bills from different suppliers (CRITICAL)
- * - Cannot over-allocate (payment amount vs bill outstanding)
- */
-export interface ValidatePaymentToBillsResult extends RelationshipValidationResult {
-  billSuppliers?: Array<{
-    billId: Types.ObjectId;
-    billNumber: string;
-    supplierId: Types.ObjectId;
-    status: SupplierBillStatus;
-    outstandingCents: number;
-  }>;
-  paymentSupplierId?: Types.ObjectId;
-  totalAllocationCents?: number;
-  paymentAmountCents?: number;
-}
-
-// ============================================================================
-// TRACEABILITY TYPES
-// ============================================================================
-
-/**
- * Traceability path from StockItem to Payment
- */
-export interface StockItemTrace {
-  stockItemId: Types.ObjectId;
-  stockItemName: string;
-  sku: string;
-  
-  // Receipt path
-  receipts: Array<{
-    grvId: Types.ObjectId;
-    grvNumber: string;
-    grvDate: Date;
-    poId?: Types.ObjectId;
-    poNumber?: string;
-    quantity: number;
-    unitCostCents: number;
-  }>;
-  
-  // Billing path
-  bills: Array<{
-    billId: Types.ObjectId;
-    billNumber: string;
-    billDate: Date;
-    quantity: number;
-    unitCostCents: number;
-  }>;
-  
-  // Payment path
-  payments: Array<{
-    paymentId: Types.ObjectId;
-    paymentNumber: string;
-    paymentDate: Date;
-    amountCents: number;
-  }>;
-}
-
-/**
  * Simplified trace for UI display
  */
 export interface TraceableDocument {
-  type: "GRV" | "PO" | "Bill" | "Payment";
+  type: "GRV" | "PO" | "Bill";
   id: Types.ObjectId;
   number: string;
   date: Date;

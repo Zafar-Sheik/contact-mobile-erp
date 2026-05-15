@@ -12,7 +12,6 @@ import { dbConnect } from "@/lib/db";
 import { PurchaseOrder } from "@/lib/models/PurchaseOrder";
 import { GRV } from "@/lib/models/GRV";
 import { SupplierBill } from "@/lib/models/SupplierBill";
-import { SupplierPayment } from "@/lib/models/SupplierPayment";
 import { InventoryMovement } from "@/lib/models/InventoryMovement";
 import { StockItem } from "@/lib/models/StockItem";
 import { User } from "@/lib/models/User";
@@ -22,11 +21,9 @@ import {
   POStatus,
   GRVStatus,
   SupplierBillStatus,
-  SupplierPaymentStatus,
   PO_STATUS_TRANSITIONS,
   GRV_STATUS_TRANSITIONS,
   BILL_STATUS_TRANSITIONS,
-  PAYMENT_STATUS_TRANSITIONS,
   Permission,
   hasPermission,
   AuditAction,
@@ -69,14 +66,13 @@ function canTransition(
  * Guard: Check if document affects financials (is locked)
  */
 export function isLocked(
-  docType: "PO" | "GRV" | "SupplierBill" | "SupplierPayment",
+  docType: "PO" | "GRV" | "SupplierBill",
   status: string
 ): boolean {
   const lockedStatuses: Record<string, string[]> = {
     PO: [POStatus.SUBMITTED, POStatus.APPROVED, POStatus.SENT, POStatus.PARTIALLY_RECEIVED, POStatus.FULLY_RECEIVED, POStatus.CLOSED],
     GRV: [GRVStatus.POSTED, GRVStatus.VOIDED],
     SupplierBill: [SupplierBillStatus.MATCHING_REQUIRED, SupplierBillStatus.APPROVED, SupplierBillStatus.PARTIALLY_PAID, SupplierBillStatus.PAID, SupplierBillStatus.VOIDED],
-    SupplierPayment: [SupplierPaymentStatus.POSTED, SupplierPaymentStatus.VOIDED],
   };
   
   return lockedStatuses[docType]?.includes(status) || false;
@@ -86,14 +82,13 @@ export function isLocked(
  * Guard: Check if document can be edited
  */
 export function canEdit(
-  docType: "PO" | "GRV" | "SupplierBill" | "SupplierPayment",
+  docType: "PO" | "GRV" | "SupplierBill",
   status: string
 ): boolean {
   const editableStatuses: Record<string, string[]> = {
     PO: [POStatus.DRAFT],
     GRV: [GRVStatus.DRAFT],
     SupplierBill: [SupplierBillStatus.DRAFT],
-    SupplierPayment: [SupplierPaymentStatus.DRAFT],
   };
   
   return editableStatuses[docType]?.includes(status) || false;
@@ -656,146 +651,6 @@ export async function voidBillWithReversal(
 }
 
 // ============================================================================
-// SUPPLIER PAYMENT SERVICE
-// ============================================================================
-
-/**
- * Post Payment (affects cash/AP)
- */
-export async function postPayment(
-  paymentId: string,
-  userId: string,
-  userRole: string
-): Promise<TransitionResult> {
-  if (!await checkPermission(userId, Permission.PAYMENT_POST)) {
-    return { success: false, error: "Insufficient permissions to post Payment" };
-  }
-  
-  await dbConnect();
-  
-  const payment = await SupplierPayment.findById(paymentId);
-  if (!payment) {
-    return { success: false, error: "Supplier Payment not found" };
-  }
-  
-  if (!canTransition(payment.status, SupplierPaymentStatus.POSTED, PAYMENT_STATUS_TRANSITIONS)) {
-    return { success: false, error: `Cannot post Payment with status ${payment.status}` };
-  }
-  
-  const previousStatus = payment.status;
-  
-  // Update linked bills
-  if (payment.allocations && payment.allocations.length > 0) {
-    for (const alloc of payment.allocations) {
-      const bill = await SupplierBill.findById(alloc.supplierBillId);
-      if (bill) {
-        const newPaidCents = (bill.paidCents || 0) + alloc.amountCents;
-        const newStatus = newPaidCents >= bill.totalCents 
-          ? SupplierBillStatus.PAID 
-          : SupplierBillStatus.PARTIALLY_PAID;
-        
-        await SupplierBill.updateOne(
-          { _id: bill._id },
-          { $set: { paidCents: newPaidCents, status: newStatus } }
-        );
-      }
-    }
-  }
-  
-  payment.status = SupplierPaymentStatus.POSTED;
-  payment.postedAt = new Date();
-  payment.updatedBy = new Types.ObjectId(userId);
-  await payment.save();
-  
-  await logAuditEntry({
-    docType: "SupplierPayment",
-    docId: payment._id,
-    docNumber: payment.paymentNumber,
-    action: AuditAction.POST,
-    userId,
-    userRole,
-    screen: "SupplierPayments",
-  });
-  
-  return {
-    success: true,
-    previousStatus,
-    newStatus: payment.status,
-  };
-}
-
-/**
- * Void Payment with reversal
- */
-export async function voidPaymentWithReversal(
-  paymentId: string,
-  userId: string,
-  userRole: string,
-  reason: string
-): Promise<TransitionResult> {
-  if (!await checkPermission(userId, Permission.PAYMENT_VOID)) {
-    return { success: false, error: "Insufficient permissions to void Payment" };
-  }
-  
-  await dbConnect();
-  
-  const payment = await SupplierPayment.findById(paymentId);
-  if (!payment) {
-    return { success: false, error: "Supplier Payment not found" };
-  }
-  
-  if (!canTransition(payment.status, SupplierPaymentStatus.VOIDED, PAYMENT_STATUS_TRANSITIONS)) {
-    return { success: false, error: `Cannot void Payment with status ${payment.status}` };
-  }
-  
-  if (!reason) {
-    return { success: false, error: "Reason is required when voiding a Payment" };
-  }
-  
-  const previousStatus = payment.status;
-  
-  // Reverse bill allocations
-  if (payment.allocations && payment.allocations.length > 0) {
-    for (const alloc of payment.allocations) {
-      const bill = await SupplierBill.findById(alloc.supplierBillId);
-      if (bill) {
-        const newPaidCents = Math.max(0, (bill.paidCents || 0) - alloc.amountCents);
-        const newStatus = newPaidCents === 0 
-          ? SupplierBillStatus.APPROVED 
-          : SupplierBillStatus.PARTIALLY_PAID;
-        
-        await SupplierBill.updateOne(
-          { _id: bill._id },
-          { $set: { paidCents: newPaidCents, status: newStatus } }
-        );
-      }
-    }
-  }
-  
-  payment.status = SupplierPaymentStatus.VOIDED;
-  payment.notes = (payment.notes || "") + `\n[VOIDED: ${reason}]`;
-  payment.updatedBy = new Types.ObjectId(userId);
-  await payment.save();
-  
-  await logAuditEntry({
-    docType: "SupplierPayment",
-    docId: payment._id,
-    docNumber: payment.paymentNumber,
-    action: AuditAction.VOID,
-    userId,
-    userRole,
-    screen: "SupplierPayments",
-    reason,
-  });
-  
-  return {
-    success: true,
-    previousStatus,
-    newStatus: payment.status,
-  };
-}
-
-// ============================================================================
 // EDIT GUARDS (prevent edits after financial impact)
 // ============================================================================
 
@@ -803,7 +658,7 @@ export async function voidPaymentWithReversal(
  * Check if document fields can be edited
  */
 export function canEditField(
-  docType: "PO" | "GRV" | "SupplierBill" | "SupplierPayment",
+  docType: "PO" | "GRV" | "SupplierBill",
   status: string,
   field: string
 ): { canEdit: boolean; reason?: string } {
@@ -828,7 +683,7 @@ export function canEditField(
  * Validate edit request
  */
 export function validateEdit<T extends Record<string, any>>(
-  docType: "PO" | "GRV" | "SupplierBill" | "SupplierPayment",
+  docType: "PO" | "GRV" | "SupplierBill",
   currentStatus: string,
   updates: T,
   allowedFields: string[]

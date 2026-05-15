@@ -7,7 +7,6 @@
  * - Prevent cross-supplier linking (CRITICAL)
  * - Validate document state transitions
  * - Check quantity constraints
- * - Validate allocations
  */
 
 import { Types } from "mongoose";
@@ -15,12 +14,10 @@ import { dbConnect } from "@/lib/db";
 import { PurchaseOrder } from "@/lib/models/PurchaseOrder";
 import { GRV } from "@/lib/models/GRV";
 import { SupplierBill } from "@/lib/models/SupplierBill";
-import { SupplierPayment } from "@/lib/models/SupplierPayment";
 import { Supplier } from "@/lib/models/Supplier";
 import type {
   ValidateGRVtoPOResult,
   ValidateBillToGRVsResult,
-  ValidatePaymentToBillsResult,
   RelationshipValidationResult,
 } from "@/lib/types/p2p";
 
@@ -41,7 +38,6 @@ export async function validateSupplierConsistency(
   
   const mainId = mainSupplierId.toString();
   
-  // Check each linked document's supplier
   for (const supplierId of linkedSupplierIds) {
     if (supplierId && supplierId.toString() !== mainId) {
       errors.push(
@@ -50,11 +46,7 @@ export async function validateSupplierConsistency(
     }
   }
   
-  return {
-    valid: errors.length === 0,
-    errors,
-    warnings,
-  };
+  return { valid: errors.length === 0, errors, warnings };
 }
 
 /**
@@ -71,10 +63,7 @@ export async function getSupplierForDocument(
     
   if (!supplier) return null;
   
-  return {
-    id: supplier._id as Types.ObjectId,
-    name: supplier.name,
-  };
+  return { id: supplier._id as Types.ObjectId, name: supplier.name };
 }
 
 // ============================================================================
@@ -83,10 +72,6 @@ export async function getSupplierForDocument(
 
 /**
  * Validates that a GRV can be linked to a PO
- * Rules:
- * - GRV supplier must match PO supplier
- * - GRV line quantities cannot exceed PO line quantities
- * - PO must be in valid state (Issued, PartiallyReceived)
  */
 export async function validateGRVToPO(
   grvId: Types.ObjectId | string,
@@ -97,7 +82,6 @@ export async function validateGRVToPO(
   
   await dbConnect();
   
-  // Fetch GRV
   const grv = await GRV.findById(grvId)
     .populate("supplierId", "name")
     .lean();
@@ -107,7 +91,6 @@ export async function validateGRVToPO(
     return { valid: false, errors, warnings };
   }
   
-  // Fetch PO
   const po = await PurchaseOrder.findById(poId)
     .populate("supplierId", "name")
     .lean();
@@ -117,7 +100,6 @@ export async function validateGRVToPO(
     return { valid: false, errors, warnings };
   }
   
-  // Rule 1: Supplier must match
   const grvSupplierId = (grv.supplierId as any)?._id || grv.supplierId;
   const poSupplierId = (po.supplierId as any)?._id || po.supplierId;
   
@@ -127,16 +109,13 @@ export async function validateGRVToPO(
     );
   }
   
-  // Rule 2: PO must be in valid state (check against database status values)
-  // Database statuses: DRAFT, SUBMITTED, APPROVED, SENT, PARTIALLY_RECEIVED, FULLY_RECEIVED, CLOSED, CANCELLED
   const validPOStatuses = ["SENT", "PARTIALLY_RECEIVED", "APPROVED", "SUBMITTED", "DRAFT"];
   if (!validPOStatuses.includes(po.status)) {
     errors.push(
-      `PO status must allow receiving (Issued/Approved/Submitted/Draft), current status: ${po.status}`
+      `PO status must allow receiving, current status: ${po.status}`
     );
   }
   
-  // Rule 3: Validate line quantities
   const lineErrors: Array<{ lineNo: number; issue: string }> = [];
   
   if (grv.lines && po.lines) {
@@ -154,7 +133,6 @@ export async function validateGRVToPO(
           });
         }
       } else if (po.lines.length > 0) {
-        // Warning: GRV line doesn't match any PO line
         warnings.push(
           `Line ${grvLine.lineNo}: Stock item not found in PO - will be treated as non-PO receipt`
         );
@@ -182,8 +160,6 @@ export async function validateGRVToPO(
 
 /**
  * Validates that a Supplier Bill can be linked to GRVs
- * CRITICAL: All GRVs must have the SAME supplier as the bill
- * CRITICAL: All GRVs must be Posted (not Draft or Cancelled)
  */
 export async function validateBillToGRVs(
   billSupplierId: Types.ObjectId | string,
@@ -200,7 +176,6 @@ export async function validateBillToGRVs(
   
   const billSupplierIdStr = billSupplierId.toString();
   
-  // Fetch all GRVs
   const grvs = await GRV.find({ _id: { $in: grvIds } })
     .populate("supplierId", "name")
     .lean();
@@ -222,23 +197,20 @@ export async function validateBillToGRVs(
       status: grv.status,
     });
     
-    // CRITICAL: Check supplier match
     if (grvSupplierId?.toString() !== billSupplierIdStr) {
       const grvSupplierName = (grv.supplierId as any)?.name || "Unknown";
       errors.push(
-        `Cross-supplier linking detected: GRV ${grv.grvNumber} is from supplier "${grvSupplierName}" but Bill is for a different supplier`
+        `Cross-supplier linking detected: GRV ${grv.grvNumber} is from supplier "${grvSupplierName}"`
       );
     }
     
-    // GRV must be Posted
     if (grv.status !== "POSTED") {
       errors.push(
-        `GRV ${grv.grvNumber} must be Posted before it can be included in a Bill, current status: ${grv.status}`
+        `GRV ${grv.grvNumber} must be Posted, current status: ${grv.status}`
       );
     }
   }
   
-  // Check for duplicate GRVs
   const uniqueGrvIds = new Set(grvIds.map((id) => id.toString()));
   if (uniqueGrvIds.size !== grvIds.length) {
     errors.push("Duplicate GRVs detected in bill");
@@ -250,124 +222,6 @@ export async function validateBillToGRVs(
     warnings,
     grvSuppliers,
     billSupplierId: billSupplierId as Types.ObjectId,
-  };
-}
-
-// ============================================================================
-// PAYMENT TO BILLS VALIDATION (CRITICAL - Cross-Supplier)
-// ============================================================================
-
-/**
- * Validates that a Supplier Payment can be allocated to Bills
- * CRITICAL: All Bills must have the SAME supplier as the payment
- * CRITICAL: All Bills must be Posted (not Draft or Voided)
- * CRITICAL: Cannot allocate more than the payment amount
- * CRITICAL: Cannot allocate more than bill outstanding amount
- */
-export async function validatePaymentToBills(
-  paymentSupplierId: Types.ObjectId | string,
-  paymentAmountCents: number,
-  allocations: Array<{
-    billId: Types.ObjectId | string;
-    amountCents: number;
-  }>
-): Promise<ValidatePaymentToBillsResult> {
-  const errors: string[] = [];
-  const warnings: string[] = [];
-  
-  if (!allocations || allocations.length === 0) {
-    // No allocations - this is allowed (unapplied payment)
-    return { valid: true, errors, warnings };
-  }
-  
-  await dbConnect();
-  
-  const paymentSupplierIdStr = paymentSupplierId.toString();
-  
-  // Fetch all Bills
-  const billIds = allocations.map((a) => a.billId);
-  const bills = await SupplierBill.find({ _id: { $in: billIds } })
-    .populate("supplierId", "name")
-    .lean();
-    
-  if (bills.length !== billIds.length) {
-    errors.push("One or more Bills not found");
-    return { valid: false, errors, warnings };
-  }
-  
-  const billSuppliers: ValidatePaymentToBillsResult["billSuppliers"] = [];
-  let totalAllocationCents = 0;
-  
-  for (const allocation of allocations) {
-    const bill = bills.find((b) => b._id.toString() === allocation.billId.toString());
-    
-    if (!bill) continue;
-    
-    const billSupplierId = (bill.supplierId as any)?._id || bill.supplierId;
-    const outstandingCents = bill.totalCents - (bill.paidCents || 0);
-    
-    billSuppliers.push({
-      billId: bill._id as Types.ObjectId,
-      billNumber: bill.billNumber,
-      supplierId: billSupplierId as Types.ObjectId,
-      status: bill.status,
-      outstandingCents,
-    });
-    
-    // CRITICAL: Check supplier match
-    if (billSupplierId?.toString() !== paymentSupplierIdStr) {
-      const billSupplierName = (bill.supplierId as any)?.name || "Unknown";
-      errors.push(
-        `Cross-supplier linking detected: Bill ${bill.billNumber} is from supplier "${billSupplierName}" but Payment is for a different supplier`
-      );
-    }
-    
-    // Bill must be Posted
-    const validBillStatuses = ["Posted", "PartiallyPaid"];
-    if (!validBillStatuses.includes(bill.status)) {
-      errors.push(
-        `Bill ${bill.billNumber} must be Posted before payment can be allocated, current status: ${bill.status}`
-      );
-    }
-    
-    // Cannot allocate more than bill outstanding
-    if (allocation.amountCents > outstandingCents) {
-      errors.push(
-        `Allocation to Bill ${bill.billNumber} (${allocation.amountCents}) exceeds outstanding amount (${outstandingCents})`
-      );
-    }
-    
-    totalAllocationCents += allocation.amountCents;
-  }
-  
-  // Cannot allocate more than payment amount
-  if (totalAllocationCents > paymentAmountCents) {
-    errors.push(
-      `Total allocations (${totalAllocationCents}) exceed payment amount (${paymentAmountCents})`
-    );
-  }
-  
-  // Warning if payment is not fully allocated
-  if (totalAllocationCents < paymentAmountCents) {
-    warnings.push(
-      `Payment has ${paymentAmountCents - totalAllocationCents} cents unallocated`
-    );
-  }
-  
-  // Check for duplicate bills
-  const uniqueBillIds = new Set(billIds.map((id) => id.toString()));
-  if (uniqueBillIds.size !== billIds.length) {
-    errors.push("Duplicate Bills detected in payment allocations");
-  }
-  
-  return {
-    valid: errors.length === 0,
-    errors,
-    warnings,
-    billSuppliers,
-    paymentSupplierId: paymentSupplierId as Types.ObjectId,
-    totalAllocationCents,
-    paymentAmountCents,
   };
 }
 
@@ -391,11 +245,7 @@ export function canModifyDocument(
     );
   }
   
-  return {
-    valid: errors.length === 0,
-    errors,
-    warnings,
-  };
+  return { valid: errors.length === 0, errors, warnings };
 }
 
 /**
@@ -410,9 +260,7 @@ export function canCancelDocument(
   
   const cancellableStatuses = ["Draft", "Issued"];
   if (!cancellableStatuses.includes(status)) {
-    errors.push(
-      `Cannot cancel document with status "${status}"`
-    );
+    errors.push(`Cannot cancel document with status "${status}"`);
   }
   
   if (hasLinkedDocuments) {
@@ -421,11 +269,7 @@ export function canCancelDocument(
     );
   }
   
-  return {
-    valid: errors.length === 0,
-    errors,
-    warnings,
-  };
+  return { valid: errors.length === 0, errors, warnings };
 }
 
 // ============================================================================
@@ -434,18 +278,16 @@ export function canCancelDocument(
 
 /**
  * Gets the full traceability path for a stock item
- * Returns: GRV → PO (optional), Bills, Payments
+ * Returns: GRV → PO (optional), Bills
  */
 export async function getStockItemTrace(
   stockItemId: Types.ObjectId | string
 ): Promise<{
   receipts: Array<any>;
   bills: Array<any>;
-  payments: Array<any>;
 }> {
   await dbConnect();
   
-  // Find GRVs containing this stock item
   const grvs = await GRV.find({
     "lines.stockItemId": stockItemId,
     status: "Posted",
@@ -473,7 +315,6 @@ export async function getStockItemTrace(
     };
   });
   
-  // Find Bills containing this stock item
   const bills = await SupplierBill.find({
     "billLines.stockItemId": stockItemId,
     status: { $in: ["Posted", "PartiallyPaid", "Paid"] },
@@ -498,40 +339,5 @@ export async function getStockItemTrace(
     };
   });
   
-  // Find Payments linked to those bills
-  const billIds = bills.map((b: any) => b._id);
-  const payments = await SupplierPayment.find({
-    "allocations.billId": { $in: billIds },
-    status: "Posted",
-    isDeleted: false,
-  })
-    .populate("supplierId", "name")
-    .sort({ paymentDate: -1 })
-    .lean();
-    
-  const paymentData = payments.map((payment: any) => {
-    // Filter allocations to relevant bills
-    const relevantAllocations = payment.allocations?.filter(
-      (alloc: any) => billIds.some((bid: any) => bid.toString() === alloc.supplierBillId?.toString())
-    );
-    const totalAllocated = relevantAllocations?.reduce(
-      (sum: number, alloc: any) => sum + (alloc.amountCents || 0),
-      0
-    ) || 0;
-    
-    return {
-      paymentId: payment._id,
-      paymentNumber: payment.paymentNumber,
-      paymentDate: payment.paymentDate,
-      supplierId: payment.supplierId?._id,
-      supplierName: (payment.supplierId as any)?.name,
-      amountCents: totalAllocated,
-    };
-  });
-  
-  return {
-    receipts,
-    bills: billData,
-    payments: paymentData,
-  };
+  return { receipts, bills: billData };
 }

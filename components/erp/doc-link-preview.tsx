@@ -34,7 +34,6 @@ export function DocLinkPreview({ documents, maxDisplay = 3, className }: DocLink
       po: `/purchase-orders/${id}`,
       grv: `/grvs/${id}`,
       bill: `/supplier-bills/${id}`,
-      payment: `/supplier-payments/${id}`,
       quote: `/quotes/${id}`,
       invoice: `/invoices/${id}`,
       supplier: `/suppliers/${id}`,
@@ -87,7 +86,6 @@ export function InlineDocLink({
   const href = type === "po" ? `/purchase-orders/${id}` 
     : type === "grv" ? `/grvs/${id}`
     : type === "bill" ? `/supplier-bills/${id}`
-    : type === "payment" ? `/supplier-payments/${id}`
     : type === "quote" ? `/quotes/${id}`
     : type === "invoice" ? `/invoices/${id}`
     : "#";

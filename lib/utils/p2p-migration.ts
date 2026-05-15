@@ -19,7 +19,6 @@ import { dbConnect } from "@/lib/db";
 import { PurchaseOrder } from "@/lib/models/PurchaseOrder";
 import { GRV } from "@/lib/models/GRV";
 import { SupplierBill } from "@/lib/models/SupplierBill";
-import { SupplierPayment } from "@/lib/models/SupplierPayment";
 import { StockItem } from "@/lib/models/StockItem";
 import { Supplier } from "@/lib/models/Supplier";
 import { Counter } from "@/lib/models/Counter";
@@ -243,121 +242,6 @@ export async function backfillBillToGRVLinks(
 }
 
 // ============================================================================
-// BACKFILL: Link Payments to Bills
-// ============================================================================
-
-/**
- * Backfill Bill references in Payments (allocations)
- * 
- * Strategy:
- * 1. Find Payments without allocations
- * 2. Match by supplier + outstanding bills
- * 3. Auto-allocate to oldest outstanding bills first
- */
-export async function backfillPaymentAllocations(
-  companyId: string
-): Promise<BackfillResult> {
-  const result: BackfillResult = {
-    success: true,
-    linked: 0,
-    unlinked: 0,
-    errors: [],
-  };
-
-  try {
-    await dbConnect();
-
-    // Find Payments without allocations (unapplied payments)
-    const payments = await SupplierPayment.find({
-      companyId,
-      allocations: { $exists: true, $size: 0 },
-      isDeleted: false,
-      status: "Posted",
-    }).lean();
-
-    for (const payment of payments) {
-      // Find outstanding bills for same supplier
-      const outstandingBills = await SupplierBill.find({
-        companyId,
-        supplierId: payment.supplierId,
-        status: { $in: ["Posted", "PartiallyPaid"] },
-        isDeleted: false,
-      })
-        .sort({ billDate: 1 })
-        .lean();
-
-      if (outstandingBills.length > 0) {
-        let remainingAmount = payment.amountCents;
-        const allocations: Array<{
-          supplierBillId: Types.ObjectId;
-          amountCents: number;
-        }> = [];
-
-        // Allocate to oldest bills first
-        for (const bill of outstandingBills) {
-          if (remainingAmount <= 0) break;
-
-          const outstanding = bill.totalCents - (bill.paidCents || 0);
-          const allocateAmount = Math.min(remainingAmount, outstanding);
-
-          if (allocateAmount > 0) {
-            allocations.push({
-              supplierBillId: bill._id as Types.ObjectId,
-              amountCents: allocateAmount,
-            });
-
-            remainingAmount -= allocateAmount;
-
-            // Update bill paid amount
-            const newPaidCents = (bill.paidCents || 0) + allocateAmount;
-            const newStatus = newPaidCents >= bill.totalCents ? "Paid" : "PartiallyPaid";
-
-            await SupplierBill.updateOne(
-              { _id: bill._id },
-              { 
-                $set: { 
-                  paidCents: newPaidCents,
-                  status: newStatus,
-                } 
-              }
-            );
-          }
-        }
-
-        // Update payment with allocations
-        if (allocations.length > 0) {
-          await SupplierPayment.updateOne(
-            { _id: payment._id },
-            { 
-              $set: { 
-                allocations,
-                unallocatedCents: remainingAmount,
-              } 
-            }
-          );
-
-          result.linked++;
-        } else {
-          result.unlinked++;
-        }
-      } else {
-        // No outstanding bills - leave as unapplied
-        await SupplierPayment.updateOne(
-          { _id: payment._id },
-          { $set: { unallocatedCents: payment.amountCents } }
-        );
-        result.unlinked++;
-      }
-    }
-  } catch (error: any) {
-    result.success = false;
-    result.errors.push(`Backfill failed: ${error.message}`);
-  }
-
-  return result;
-}
-
-// ============================================================================
 // BACKFILL: Add stock item snapshots to existing line items
 // ============================================================================
 
@@ -486,14 +370,12 @@ export async function findCrossSupplierViolations(
   companyId: string
 ): Promise<{
   billsWithWrongGRVs: Array<{ billId: string; billNumber: string; grvIds: string[] }>;
-  paymentsWithWrongBills: Array<{ paymentId: string; paymentNumber: string; billIds: string[] }>;
   grvsWithWrongPO: Array<{ grvId: string; grvNumber: string; poId: string | null }>;
 }> {
   await dbConnect();
 
   const violations = {
     billsWithWrongGRVs: [] as Array<{ billId: string; billNumber: string; grvIds: string[] }>,
-    paymentsWithWrongBills: [] as Array<{ paymentId: string; paymentNumber: string; billIds: string[] }>,
     grvsWithWrongPO: [] as Array<{ grvId: string; grvNumber: string; poId: string | null }>,
   };
 
@@ -523,37 +405,6 @@ export async function findCrossSupplierViolations(
         billId: bill._id.toString(),
         billNumber: bill.billNumber,
         grvIds: wrongGRVs.map((grv) => grv._id.toString()),
-      });
-    }
-  }
-
-  // Check Payments for Bill supplier mismatches
-  const payments = await SupplierPayment.find({
-    companyId,
-    isDeleted: false,
-    allocations: { $exists: true, $ne: [] },
-  })
-    .populate("supplierId", "name")
-    .lean();
-
-  for (const payment of payments) {
-    const paymentSupplierId = (payment.supplierId as any)?._id?.toString();
-    
-    const billIds = ((payment.allocations as any)?.map((a: any) => a.supplierBillId) || []) as any[];
-    const bills = await SupplierBill.find({
-      _id: { $in: billIds },
-    }).populate("supplierId", "name").lean();
-
-    const wrongBills = bills.filter((b) => {
-      const billSupplierId = (b.supplierId as any)?._id?.toString();
-      return billSupplierId !== paymentSupplierId;
-    });
-
-    if (wrongBills.length > 0) {
-      violations.paymentsWithWrongBills.push({
-        paymentId: payment._id.toString(),
-        paymentNumber: payment.paymentNumber,
-        billIds: wrongBills.map((b) => b._id.toString()),
       });
     }
   }
@@ -598,7 +449,6 @@ export async function runAllBackfills(
   counters: MigrationResult;
   grvToPO: BackfillResult;
   billToGRV: BackfillResult;
-  paymentAllocations: BackfillResult;
   snapshots: MigrationResult;
 }> {
   // Initialize counters first
@@ -607,14 +457,12 @@ export async function runAllBackfills(
   // Run backfills
   const grvToPO = await backfillGRVToPOLinks(companyId);
   const billToGRV = await backfillBillToGRVLinks(companyId);
-  const paymentAllocations = await backfillPaymentAllocations(companyId);
   const snapshots = await backfillItemSnapshots(companyId);
 
   return {
     counters,
     grvToPO,
     billToGRV,
-    paymentAllocations,
     snapshots,
   };
 }

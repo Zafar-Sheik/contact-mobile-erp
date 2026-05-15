@@ -1,20 +1,17 @@
 /**
- * ERP-Grade P2P Status Definitions
- * 
- * Implements the standard PO → Receipt → Invoice (3-way match) workflow:
- * 
- * Purchase Order:
- * DRAFT → SUBMITTED → APPROVED → SENT → PARTIALLY_RECEIVED → CLOSED | CANCELLED
- * 
- * GRV (Goods Received Voucher):
- * DRAFT → POSTED | VOIDED
- * 
- * Supplier Bill:
- * DRAFT → MATCHING_REQUIRED → APPROVED → PARTIALLY_PAID → PAID | VOIDED
- * 
- * Supplier Payment:
- * DRAFT → POSTED | VOIDED
- */
+  * ERP-Grade P2P Status Definitions
+  * 
+  * Implements the standard PO → Receipt → Invoice (3-way match) workflow:
+  * 
+  * Purchase Order:
+  * DRAFT → SUBMITTED → APPROVED → SENT → PARTIALLY_RECEIVED → CLOSED | CANCELLED
+  * 
+  * GRV (Goods Received Voucher):
+  * DRAFT → POSTED | VOIDED
+  * 
+  * Supplier Bill:
+  * DRAFT → MATCHING_REQUIRED → APPROVED → PARTIALLY_PAID → PAID | VOIDED
+  */
 
 import { Types } from "mongoose";
 
@@ -51,13 +48,6 @@ export enum SupplierBillStatus {
   VOIDED = "VOIDED",
 }
 
-/** Supplier Payment statuses */
-export enum SupplierPaymentStatus {
-  DRAFT = "DRAFT",
-  POSTED = "POSTED",
-  VOIDED = "VOIDED",
-}
-
 // ============================================================================
 // STATUS TRANSITIONS
 // ============================================================================
@@ -89,26 +79,19 @@ export const BILL_STATUS_TRANSITIONS: Record<SupplierBillStatus, SupplierBillSta
   [SupplierBillStatus.VOIDED]: [],
 };
 
-export const PAYMENT_STATUS_TRANSITIONS: Record<SupplierPaymentStatus, SupplierPaymentStatus[]> = {
-  [SupplierPaymentStatus.DRAFT]: [SupplierPaymentStatus.POSTED, SupplierPaymentStatus.VOIDED],
-  [SupplierPaymentStatus.POSTED]: [SupplierPaymentStatus.VOIDED],
-  [SupplierPaymentStatus.VOIDED]: [],
-};
-
 // ============================================================================
 // FINANCIAL IMPACT FLAGS
 // ============================================================================
 
 /** Documents that affect stock and AP when POSTED */
-export const AFFECTS_STOCK_AND_AP: Record<string, GRVStatus | SupplierBillStatus | SupplierPaymentStatus> = {
+export const AFFECTS_STOCK_AND_AP: Record<string, GRVStatus | SupplierBillStatus> = {
   GRV: GRVStatus.POSTED,
   SupplierBill: SupplierBillStatus.APPROVED,
-  SupplierPayment: SupplierPaymentStatus.POSTED,
 };
 
 /** Check if a document status affects financials */
 export function affectsFinancials(
-  docType: "GRV" | "SupplierBill" | "SupplierPayment",
+  docType: "GRV" | "SupplierBill",
   status: string
 ): boolean {
   const affectingStatus = AFFECTS_STOCK_AND_AP[docType];
@@ -135,10 +118,6 @@ export enum Permission {
   BILL_MATCH = "bill:match",
   BILL_VOID = "bill:void",
   
-  PAYMENT_CREATE = "payment:create",
-  PAYMENT_POST = "payment:post",
-  PAYMENT_VOID = "payment:void",
-  
   VIEW_REPORTS = "reports:view",
   MANAGE_SUPPLIERS = "suppliers:manage",
 }
@@ -150,7 +129,6 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     Permission.PO_CREATE,
     Permission.GRV_CREATE,
     Permission.BILL_CREATE,
-    Permission.PAYMENT_CREATE,
   ],
   
   // Supervisor - can approve and post
@@ -162,8 +140,6 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     Permission.GRV_POST,
     Permission.BILL_CREATE,
     Permission.BILL_APPROVE,
-    Permission.PAYMENT_CREATE,
-    Permission.PAYMENT_POST,
     Permission.VIEW_REPORTS,
   ],
   
@@ -180,9 +156,6 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     Permission.BILL_APPROVE,
     Permission.BILL_MATCH,
     Permission.BILL_VOID,
-    Permission.PAYMENT_CREATE,
-    Permission.PAYMENT_POST,
-    Permission.PAYMENT_VOID,
     Permission.VIEW_REPORTS,
     Permission.MANAGE_SUPPLIERS,
   ],
@@ -220,7 +193,7 @@ export interface AuditEntry {
   _id?: Types.ObjectId;
   
   // Document reference
-  docType: "PO" | "GRV" | "SupplierBill" | "SupplierPayment";
+  docType: "PO" | "GRV" | "SupplierBill";
   docId: Types.ObjectId;
   docNumber: string;
   
@@ -249,7 +222,7 @@ export interface AuditEntry {
 
 /** Create audit entry data */
 export interface CreateAuditEntryParams {
-  docType: "PO" | "GRV" | "SupplierBill" | "SupplierPayment";
+  docType: "PO" | "GRV" | "SupplierBill";
   docId: string | Types.ObjectId;
   docNumber: string;
   action: AuditAction;

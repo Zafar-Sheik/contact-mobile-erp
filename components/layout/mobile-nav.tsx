@@ -46,7 +46,6 @@ const purchaseNavigation = [
   { name: "Suppliers", href: "/suppliers", icon: Building2 },
   { name: "Purchase Orders", href: "/purchase-orders", icon: ShoppingCart },
   { name: "Supplier Bills", href: "/supplier-bills", icon: Receipt },
-  { name: "Creditors Payments", href: "/supplier-payments", icon: DollarSign },
 ];
 
 const billsNavigation = [

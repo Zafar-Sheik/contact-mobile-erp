@@ -47,15 +47,6 @@ interface SupplierBill {
   date: string;
 }
 
-interface SupplierPayment {
-  _id: string;
-  paymentNumber: string;
-  status: string;
-  amount: number;
-  supplierName?: string;
-  date: string;
-}
-
 interface P2pSummary {
   openPOs: number;
   pendingReceipts: number;
@@ -85,13 +76,6 @@ const quickActions = [
     icon: Receipt,
     color: "bg-amber-600",
     description: "Create supplier bill",
-  },
-  {
-    label: "Pay Supplier",
-    href: "/supplier-payments/new",
-    icon: CreditCard,
-    color: "bg-purple-600",
-    description: "Record payment",
   },
 ];
 
@@ -195,7 +179,7 @@ function QuickAction({ label, description, href, icon: Icon, color }: QuickActio
 
 // Recent Activity Item
 interface RecentActivityItemProps {
-  type: "PO" | "GRV" | "BILL" | "PAY";
+  type: "PO" | "GRV" | "BILL";
   number: string;
   title: string;
   amount?: number;
@@ -209,7 +193,6 @@ function RecentActivityItem({ type, number, title, amount, status, date, href }:
     PO: "bg-blue-100 text-blue-700",
     GRV: "bg-emerald-100 text-emerald-700",
     BILL: "bg-amber-100 text-amber-700",
-    PAY: "bg-purple-100 text-purple-700",
   };
 
   const badge = getStatusBadge(status);
@@ -241,7 +224,6 @@ export default function P2PHubPage() {
   const { data: recentPOs } = useApi<PurchaseOrder[]>("/api/purchase-orders?limit=3&status=Issued", { immediate: true });
   const { data: recentGRVs } = useApi<GRV[]>("/api/grvs?limit=3&status=Pending", { immediate: true });
   const { data: recentBills } = useApi<SupplierBill[]>("/api/supplier-bills?limit=3&status=Draft", { immediate: true });
-  const { data: recentPayments } = useApi<SupplierPayment[]>("/api/supplier-payments?limit=3", { immediate: true });
 
   const summary = summaryData || {
     openPOs: 0,
@@ -278,15 +260,6 @@ export default function P2PHubPage() {
       status: bill.status,
       date: formatDate(bill.date),
       href: `/supplier-bills/${bill._id}`,
-    })),
-    ...(recentPayments || []).map((pay) => ({
-      type: "PAY" as const,
-      number: pay.paymentNumber,
-      title: pay.supplierName || "Payment",
-      amount: pay.amount,
-      status: pay.status,
-      date: formatDate(pay.date),
-      href: `/supplier-payments/${pay._id}`,
     })),
   ]
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())

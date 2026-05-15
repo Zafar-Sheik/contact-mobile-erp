@@ -11,7 +11,6 @@ import {
   ShoppingCart,
   Package,
   Receipt,
-  CreditCard,
   FileText,
   ExternalLink,
 } from "lucide-react";
@@ -60,15 +59,6 @@ interface SupplierBill {
   total: number;
   status: string;
   paidAmount?: number;
-}
-
-interface SupplierPayment {
-  _id: string;
-  paymentNumber: string;
-  date: string;
-  amount: number;
-  status: string;
-  reference?: string;
 }
 
 interface SupplierAPSummary {
@@ -182,7 +172,6 @@ export default function SupplierDetailPage() {
   const { data: openPOs } = useApi<PurchaseOrder[]>(`/api/purchase-orders?supplierId=${supplierId}&status=Issued&limit=10`, { immediate: true });
   const { data: grvs } = useApi<GRV[]>(`/api/grvs?supplierId=${supplierId}&limit=10`, { immediate: true });
   const { data: bills } = useApi<SupplierBill[]>(`/api/supplier-bills?supplierId=${supplierId}&limit=10`, { immediate: true });
-  const { data: payments } = useApi<SupplierPayment[]>(`/api/supplier-payments?supplierId=${supplierId}&limit=10`, { immediate: true });
 
   const defaultSummary: SupplierAPSummary = { outstanding: 0, overdue: 0, credits: 0 };
   const summary = apSummary || defaultSummary;
@@ -190,7 +179,6 @@ export default function SupplierDetailPage() {
   // Calculate totals for overview tab
   const totalPOs = (openPOs || []).reduce((sum, po) => sum + po.total, 0);
   const totalBills = (bills || []).reduce((sum, b) => sum + b.total, 0);
-  const totalPaid = (payments || []).reduce((sum, p) => sum + p.amount, 0);
 
   return (
     <div className="min-h-screen bg-background">
@@ -268,23 +256,16 @@ export default function SupplierDetailPage() {
                 Create PO
               </Link>
             </Button>
-            <Button asChild variant="secondary" className="flex-1">
-              <Link href={`/supplier-payments/new?supplierId=${supplierId}`}>
-                <CreditCard className="h-4 w-4 mr-2" />
-                Pay Supplier
-              </Link>
-            </Button>
           </div>
         </section>
 
         {/* Tabs */}
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="w-full grid grid-cols-6 h-auto p-1">
+          <TabsList className="w-full grid grid-cols-5 h-auto p-1">
             <TabsTrigger value="overview" className="text-xs py-2">Overview</TabsTrigger>
             <TabsTrigger value="pos" className="text-xs py-2">POs</TabsTrigger>
             <TabsTrigger value="grvs" className="text-xs py-2">GRVs</TabsTrigger>
             <TabsTrigger value="bills" className="text-xs py-2">Bills</TabsTrigger>
-            <TabsTrigger value="payments" className="text-xs py-2">Payments</TabsTrigger>
             <TabsTrigger value="statement" className="text-xs py-2">Statement</TabsTrigger>
           </TabsList>
 
@@ -299,13 +280,9 @@ export default function SupplierDetailPage() {
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Bills Total</span>
-                    <span className="font-semibold">{formatCurrency(totalBills)}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Payments Made</span>
-                    <span className="font-semibold text-emerald-600">{formatCurrency(totalPaid)}</span>
-                  </div>
-                  <div className="border-t pt-3 flex justify-between items-center">
+                      <span className="font-semibold">{formatCurrency(totalBills)}</span>
+                    </div>
+                    <div className="border-t pt-3 flex justify-between items-center">
                     <span className="text-sm font-medium">Balance Due</span>
                     <span className="font-bold text-lg">{formatCurrency(summary.outstanding)}</span>
                   </div>
@@ -379,29 +356,6 @@ export default function SupplierDetailPage() {
                 <MobileCardContent className="py-8 text-center">
                   <Receipt className="h-8 w-8 text-muted-foreground/50 mx-auto mb-2" />
                   <p className="text-sm text-muted-foreground">No supplier bills</p>
-                </MobileCardContent>
-              </MobileCard>
-            )}
-          </TabsContent>
-
-          {/* Payments Tab */}
-          <TabsContent value="payments" className="mt-4 space-y-2">
-            {(payments && payments.length > 0) ? (
-              payments.map((payment) => (
-                <DocRow
-                  key={payment._id}
-                  docNumber={payment.paymentNumber}
-                  date={payment.date}
-                  amount={payment.amount}
-                  status={payment.status}
-                  href={`/supplier-payments/${payment._id}`}
-                />
-              ))
-            ) : (
-              <MobileCard>
-                <MobileCardContent className="py-8 text-center">
-                  <CreditCard className="h-8 w-8 text-muted-foreground/50 mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">No payments recorded</p>
                 </MobileCardContent>
               </MobileCard>
             )}

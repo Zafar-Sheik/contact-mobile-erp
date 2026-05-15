@@ -12,7 +12,6 @@ import {
   ExternalLink,
   User,
   Calendar,
-  CreditCard,
   MoreHorizontal,
   Phone,
   Mail,
@@ -273,16 +272,6 @@ export default function SupplierBillDetailPage({ params }: { params: Promise<{ i
               )}
             </MobileCardContent>
           </MobileCard>
-
-          {/* Action Button */}
-          {bill.status === "APPROVED" && balanceCents > 0 && (
-            <Button className="w-full" asChild>
-              <Link href={`/supplier-payments/new?billId=${bill._id}`}>
-                <CreditCard className="h-4 w-4 mr-2" />
-                Record Payment
-              </Link>
-            </Button>
-          )}
         </section>
 
         {/* Tabs */}

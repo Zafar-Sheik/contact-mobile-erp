@@ -11,7 +11,6 @@
 
 import { dbConnect } from "@/lib/db";
 import { SupplierBill } from "@/lib/models/SupplierBill";
-import { SupplierPayment } from "@/lib/models/SupplierPayment";
 import { GRV } from "@/lib/models/GRV";
 import { Supplier } from "@/lib/models/Supplier";
 import { InventoryMovement } from "@/lib/models/InventoryMovement";
@@ -352,12 +351,6 @@ export async function getSupplierAPBalance(
     status: { $in: ["APPROVED", "PARTIALLY_PAID", "PAID"] },
   }).lean();
 
-  const payments = await SupplierPayment.find({
-    supplierId,
-    isDeleted: false,
-    status: "POSTED",
-  }).lean();
-
   const now = new Date();
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
   const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
@@ -377,9 +370,7 @@ export async function getSupplierAPBalance(
     const outstanding = billTotal - paid;
 
     totalBilled += billTotal;
-    totalPaid += paid;
-
-    // Aging
+    totalPaid += bill.paidCents || 0;
     if (bill.dueDate) {
       const dueDate = new Date(bill.dueDate);
       if (dueDate < thirtyDaysAgo) {
@@ -590,14 +581,7 @@ export async function getSupplierStatement(
     billDate: { $gte: fromDate, $lte: toDate },
   }).lean();
 
-  // Get payments in period
-  const payments = await SupplierPayment.find({
-    supplierId,
-    isDeleted: false,
-    paymentDate: { $gte: fromDate, $lte: toDate },
-  }).lean();
-
-  // Calculate opening balance (bills/payments before period)
+  // Calculate opening balance (bills before period)
   const previousBills = await SupplierBill.aggregate([
     {
       $match: {
@@ -622,7 +606,7 @@ export async function getSupplierStatement(
 
   // Calculate totals
   const totalBilled = bills.reduce((sum, b) => sum + (b.totalCents || 0), 0);
-  const totalPaid = payments.reduce((sum, p) => sum + (p.amountCents || 0), 0);
+  const totalPaid = bills.reduce((sum, b) => sum + (b.paidCents || 0), 0);
 
   return {
     supplierId: supplier._id as Types.ObjectId,
@@ -639,12 +623,6 @@ export async function getSupplierStatement(
       paidCents: b.paidCents || 0,
       outstandingCents: (b.totalCents || 0) - (b.paidCents || 0),
       status: b.status,
-    })),
-    payments: payments.map((p) => ({
-      paymentId: p._id as Types.ObjectId,
-      paymentNumber: p.paymentNumber,
-      date: p.paymentDate,
-      amountCents: p.amountCents || 0,
     })),
     closingBalanceCents: openingBalance + totalBilled - totalPaid,
     totalBilledCents: totalBilled,

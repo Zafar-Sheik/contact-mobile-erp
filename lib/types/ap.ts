@@ -35,7 +35,7 @@ export enum BillLineType {
 // ============================================================================
 
 /**
- * Supplier AP Balance - computed from bills and payments
+ * Supplier AP Balance - computed from bills
  */
 export interface SupplierAPBalance {
   supplierId: Types.ObjectId;
@@ -43,7 +43,7 @@ export interface SupplierAPBalance {
   
   // Totals
   totalBilledCents: number;      // Sum of all approved bills
-  totalPaidCents: number;         // Sum of all payments
+  totalPaidCents: number;         // Sum of all bill paid amounts
   outstandingCents: number;       // Total outstanding (billed - paid)
   
   // By status
@@ -74,7 +74,7 @@ export interface SupplierAPBalance {
 // ============================================================================
 
 /**
- * AP Ledger Entry - immutable record of bill/payment activity
+ * AP Ledger Entry - immutable record of bill activity
  */
 export interface APLedgerEntry {
   _id: Types.ObjectId;
@@ -84,10 +84,10 @@ export interface APLedgerEntry {
   supplierId: Types.ObjectId;
   
   // Entry type
-  entryType: "BILL" | "PAYMENT" | "ADJUSTMENT" | "VOID";
+  entryType: "BILL" | "ADJUSTMENT" | "VOID";
   
   // Reference
-  documentType: "SupplierBill" | "SupplierPayment";
+  documentType: "SupplierBill";
   documentId: Types.ObjectId;
   documentNumber: string;
   
@@ -168,13 +168,6 @@ export interface SupplierStatement {
     status: string;
   }>;
   
-  payments: Array<{
-    paymentId: Types.ObjectId;
-    paymentNumber: string;
-    date: Date;
-    amountCents: number;
-  }>;
-  
   // Closing balance
   closingBalanceCents: number;
   
@@ -219,7 +212,7 @@ export interface AgingReport {
     bills: Array<{
       billId: Types.ObjectId;
       billNumber: string;
-      dueDate?: Date;
+      dueDate: Date | undefined;
       amountCents: number;
       daysOverdue: number;
     }>;
@@ -227,16 +220,8 @@ export interface AgingReport {
 }
 
 // ============================================================================
-// UNPAID BILLS QUERY
+// UNPAID BILLS
 // ============================================================================
-
-export interface UnpaidBillQuery {
-  supplierId?: string;
-  status?: string;
-  fromDate?: Date;
-  toDate?: Date;
-  includeOverdueOnly?: boolean;
-}
 
 export interface UnpaidBill {
   billId: Types.ObjectId;

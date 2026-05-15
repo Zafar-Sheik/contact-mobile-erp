@@ -95,26 +95,6 @@ interface GRVFormData {
   notes: string;
 }
 
-interface BillLineData {
-  lineNo: number;
-  stockItemId: string;
-  description: string;
-  quantity: number;
-  unitCostCents: number;
-  grvId: string;
-}
-
-interface BillFormData {
-  supplierId: string;
-  poId: string;
-  billDate: string;
-  dueDate: string;
-  reference: string;
-  grvIds: string[];
-  lines: BillLineData[];
-  notes: string;
-}
-
 // Format currency
 const formatCurrency = (cents: number) => {
   return new Intl.NumberFormat("en-ZA", {
@@ -166,7 +146,6 @@ export default function PODetailPage({ params }: { params: Promise<{ poId: strin
 
   // Dialog states
   const [isGRVDialogOpen, setIsGRVDialogOpen] = React.useState(false);
-  const [isBillDialogOpen, setIsBillDialogOpen] = React.useState(false);
   const [isStatusDialogOpen, setIsStatusDialogOpen] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
@@ -183,18 +162,6 @@ export default function PODetailPage({ params }: { params: Promise<{ poId: strin
     notes: "",
   });
 
-  // Bill Form
-  const [billData, setBillData] = React.useState<BillFormData>({
-    supplierId: "",
-    poId: "",
-    billDate: new Date().toISOString().split("T")[0],
-    dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-    reference: "",
-    grvIds: [],
-    lines: [],
-    notes: "",
-  });
-
   // Open GRV dialog - navigate to GRV creation with PO reference
   const handleOpenGRVDialog = () => {
     if (!po) return;
@@ -202,14 +169,6 @@ export default function PODetailPage({ params }: { params: Promise<{ poId: strin
     // Navigate to GRV page - the user can create a new GRV from there
     // with PO reference passed as query param
     router.push(`/grvs?poId=${po._id}&poNumber=${po.poNumber}&supplierId=${typeof po.supplierId === 'object' ? po.supplierId._id : po.supplierId}`);
-  };
-
-  // Open Bill dialog with prefilled data
-  const handleOpenBillDialog = () => {
-    if (!po) return;
-    
-    // Navigate to the new bill creation page with PO params
-    router.push(`/supplier-bills/new?poId=${po._id}&supplierId=${typeof po.supplierId === 'object' ? po.supplierId._id : po.supplierId}`);
   };
 
   // Submit PO (change status to Issued)
@@ -271,42 +230,6 @@ export default function PODetailPage({ params }: { params: Promise<{ poId: strin
     }
   };
 
-  // Create Supplier Bill
-  const handleCreateBill = async () => {
-    setIsSubmitting(true);
-    try {
-      const apiData = {
-        ...billData,
-        lines: billData.lines.map(line => ({
-          ...line,
-          quantity: line.quantity || 0,
-          unitCostCents: line.unitCostCents || 0,
-          vatRate: 15,
-        })),
-      };
-      
-      const response = await fetch("/api/supplier-bills", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(apiData),
-      });
-      
-      if (!response.ok) throw new Error("Failed to create bill");
-      
-      toast({ title: "Success", description: "Supplier bill created successfully" });
-      setIsBillDialogOpen(false);
-      refetch();
-    } catch (err) {
-      toast({ 
-        title: "Error", 
-        description: err instanceof Error ? err.message : "Failed to create bill",
-        variant: "destructive"
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -328,7 +251,6 @@ export default function PODetailPage({ params }: { params: Promise<{ poId: strin
   const supplierName = typeof po.supplierId === 'object' ? po.supplierId.name : po.supplierName || "Unknown Supplier";
   const canSubmit = po.status === "Draft";
   const canCreateGRV = po.status === "Issued" || po.status === "PartiallyReceived";
-  const canCreateBill = po.status !== "Draft" && po.status !== "Cancelled";
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
@@ -547,17 +469,6 @@ export default function PODetailPage({ params }: { params: Promise<{ poId: strin
               Create GRV
             </Button>
           )}
-          
-          {canCreateBill && (
-            <Button 
-              variant="secondary"
-              className="flex-1 h-12"
-              onClick={handleOpenBillDialog}
-            >
-              <Receipt className="h-4 w-4 mr-2" />
-              Create Bill
-            </Button>
-          )}
         </div>
       </div>
 
@@ -653,77 +564,6 @@ export default function PODetailPage({ params }: { params: Promise<{ poId: strin
             </Button>
             <Button onClick={handleCreateGRV} disabled={isSubmitting}>
               {isSubmitting ? "Creating..." : "Create GRV"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Create Bill Dialog */}
-      <Dialog open={isBillDialogOpen} onOpenChange={setIsBillDialogOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Create Supplier Bill</DialogTitle>
-          </DialogHeader>
-          
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium">Supplier Invoice #</label>
-              <Input 
-                value={billData.reference}
-                onChange={(e) => setBillData({ ...billData, reference: e.target.value })}
-                placeholder="Invoice number"
-              />
-            </div>
-            
-            <div>
-              <label className="text-sm font-medium">Bill Date</label>
-              <Input 
-                type="date"
-                value={billData.billDate}
-                onChange={(e) => setBillData({ ...billData, billDate: e.target.value })}
-              />
-            </div>
-
-            <div>
-              <label className="text-sm font-medium">Due Date</label>
-              <Input 
-                type="date"
-                value={billData.dueDate}
-                onChange={(e) => setBillData({ ...billData, dueDate: e.target.value })}
-              />
-            </div>
-
-            <div>
-              <label className="text-sm font-medium">Lines to Bill</label>
-              <div className="space-y-2 mt-2 max-h-48 overflow-y-auto">
-                {billData.lines.map((line, idx) => (
-                  <div key={idx} className="p-2 border rounded bg-gray-50 text-sm">
-                    <p className="font-medium">{line.description}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-gray-500">Qty:</span>
-                      <Input
-                        type="number"
-                        className="h-8"
-                        value={line.quantity}
-                        onChange={(e) => {
-                          const newLines = [...billData.lines];
-                          newLines[idx] = { ...newLines[idx], quantity: parseInt(e.target.value) || 0 };
-                          setBillData({ ...billData, lines: newLines });
-                        }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsBillDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleCreateBill} disabled={isSubmitting}>
-              {isSubmitting ? "Creating..." : "Create Bill"}
             </Button>
           </DialogFooter>
         </DialogContent>
