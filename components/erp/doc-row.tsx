@@ -17,7 +17,7 @@ export interface DocRowData {
 
 interface DocRowProps {
   data: DocRowData;
-  type: "po" | "grv" | "bill" | "payment" | "quote" | "invoice";
+  type: "po" | "grv" | "bill" | "quote" | "invoice";
   onClick?: () => void;
   href?: string;
   className?: string;
@@ -28,7 +28,6 @@ const typeConfig = {
   po: { label: "PO", hrefPrefix: "/purchase-orders" },
   grv: { label: "GRV", hrefPrefix: "/grvs" },
   bill: { label: "BILL", hrefPrefix: "/supplier-bills" },
-  payment: { label: "PAY", hrefPrefix: "/supplier-payments" },
   quote: { label: "QUOTE", hrefPrefix: "/quotes" },
   invoice: { label: "INV", hrefPrefix: "/invoices" },
 };

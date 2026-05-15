@@ -8,7 +8,6 @@ import {
   Package,
   Truck,
   FileText,
-  CreditCard,
   ClipboardList,
   MoreHorizontal,
   LogOut,
@@ -43,12 +42,6 @@ const quickLinks = [
     href: "/invoices/new",
     icon: FileText,
     color: "bg-purple-600",
-  },
-  {
-    label: "New Creditors Payments",
-    href: "/supplier-payments",
-    icon: CreditCard,
-    color: "bg-cyan-600",
   },
   {
     label: "Record Debtor Payment",
