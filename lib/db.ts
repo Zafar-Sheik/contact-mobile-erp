@@ -1,6 +1,8 @@
 import mongoose from "mongoose";
 // Import models to ensure they are registered with Mongoose
 import { GRV } from "@/lib/models/GRV";
+import { SalesInvoice } from "@/lib/models/SalesInvoice";
+import { Session } from "@/lib/models/Session";
 
 const MONGODB_URI = process.env.MONGODB_URI;
 

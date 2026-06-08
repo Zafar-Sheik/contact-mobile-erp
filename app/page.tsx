@@ -82,9 +82,11 @@ export default function RootPage() {
       await fetch("/api/auth/logout", { method: "POST" });
     } catch (e) {
       // Continue even if API fails
+    } finally {
+      setIsAuthenticated(false);
+      router.push("/login");
+      router.refresh();
     }
-    setIsAuthenticated(false);
-    router.push("/login");
   };
 
   // Show loading while checking auth
