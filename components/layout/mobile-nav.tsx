@@ -112,6 +112,18 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
     router.push(href);
   };
 
+  const handleLogout = async () => {
+    onClose();
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch (error) {
+      console.error("Logout failed:", error);
+    } finally {
+      router.push("/login");
+      router.refresh();
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -191,7 +203,7 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
         </ScrollArea>
 
         <div className="border-t p-4">
-          <Button variant="outline" className="w-full" onClick={() => {}}>
+          <Button variant="outline" className="w-full" onClick={handleLogout}>
             <LogOut className="mr-2 h-4 w-4" />
             Sign Out
           </Button>

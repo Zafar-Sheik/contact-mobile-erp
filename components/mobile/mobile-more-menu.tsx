@@ -99,7 +99,10 @@ const defaultNavItems: MoreMenuItem[] = [
   { label: "Fuel", href: "/fuel-logs", icon: <Fuel className="w-6 h-6" /> },
   { label: "Sites", href: "/sites", icon: <Building2 className="w-6 h-6" /> },
   { label: "Company", href: "/company", icon: <Settings className="w-6 h-6" /> },
-  { label: "Logout", href: "", icon: <LogOut className="w-6 h-6" />, destructive: true },
+  { label: "Logout", icon: <LogOut className="w-6 h-6" />, destructive: true, action: async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    window.location.href = "/login";
+  }},
 ]
 
 export function MobileMoreMenu({

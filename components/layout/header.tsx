@@ -29,11 +29,16 @@ export function Header({ onMenuToggle, user }: HeaderProps) {
 
   const handleLogout = async () => {
     try {
-      await fetch("/api/auth/logout", { method: "POST" })
-      router.push("/login")
-      router.refresh()
+      const res = await fetch("/api/auth/logout", { method: "POST" });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        router.push("/login");
+        router.refresh();
+      } else {
+        console.error("Logout failed:", data.error);
+      }
     } catch (error) {
-      console.error("Logout failed:", error)
+      console.error("Logout failed:", error);
     }
   }
 

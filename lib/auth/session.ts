@@ -200,6 +200,8 @@ export const requireSessionClaims = requireSession;
  * Destroy session (logout).
  */
 export async function destroySession(_reason = "logout") {
+  await dbConnect();
+
   const jar = await cookies();
   const rawToken = jar.get(SESSION_COOKIE)?.value;
 

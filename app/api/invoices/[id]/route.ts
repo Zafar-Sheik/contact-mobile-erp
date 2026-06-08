@@ -5,6 +5,7 @@ import { CustomerPayment } from "@/lib/models/CustomerPayment";
 import { getSessionClaims } from "@/lib/auth/session";
 import { calculateDocumentTotals, calculateLineTotal, calculateBalanceDue } from "@/lib/utils/totals";
 import { StockItem } from "@/lib/models/StockItem";
+import { GRV } from "@/lib/models/GRV";
 
 // GET /api/invoices/[id] - Get a single invoice by ID
 export async function GET(
@@ -26,7 +27,6 @@ export async function GET(
     })
       .populate("clientId", "name email phone address clientCode")
       .populate("sourceQuoteId", "quoteNumber")
-      .populate("sourceGrvId", "grvNumber")
       .lean();
 
     if (!invoice) {

@@ -269,19 +269,16 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
 
         if (!res.ok) {
           toast({ title: "Error", description: data.error || `HTTP ${res.status}`, variant: "destructive" });
-          router.push("/invoices");
           return;
         }
 
         if (data.error) {
           toast({ title: "Error", description: data.error, variant: "destructive" });
-          router.push("/invoices");
           return;
         }
 
         if (!data.data) {
           toast({ title: "Error", description: "Invoice not found", variant: "destructive" });
-          router.push("/invoices");
           return;
         }
 
@@ -294,8 +291,6 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
         }
       } catch (error) {
         toast({ title: "Error", description: "Failed to fetch invoice", variant: "destructive" });
-        router.push("/invoices");
-        return;
       } finally {
         setLoading(false);
       }
@@ -463,7 +458,13 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
   }
 
   if (!invoice) {
-    return null;
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px]">
+        <p className="text-lg font-semibold text-gray-900 mb-2">Invoice not found</p>
+        <p className="text-sm text-gray-500 mb-4">The invoice you're looking for doesn't exist or has been removed.</p>
+        <Button onClick={() => router.push("/invoices")}>Back to Invoices</Button>
+      </div>
+    );
   }
 
   const client = typeof invoice.clientId === "object" ? invoice.clientId : null;
