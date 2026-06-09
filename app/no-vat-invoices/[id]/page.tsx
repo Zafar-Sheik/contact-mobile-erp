@@ -57,6 +57,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import Link from "next/link";
 import { useApi } from "@/lib/hooks/use-api";
 import { DocumentActions, DocumentPreview } from "@/components/erp/document-generator";
@@ -238,6 +239,7 @@ export default function NoVatInvoiceDetailPage({ params }: { params: Promise<{ i
   const [showPaymentDialog, setShowPaymentDialog] = React.useState(false);
   const [showCancelDialog, setShowCancelDialog] = React.useState(false);
   const [showPreviewDialog, setShowPreviewDialog] = React.useState(false);
+  const [showItemPrices, setShowItemPrices] = React.useState(true);
 
   // Payment form state
   const [paymentForm, setPaymentForm] = React.useState({
@@ -439,18 +441,20 @@ export default function NoVatInvoiceDetailPage({ params }: { params: Promise<{ i
       vatAmount: 0, // No VAT for no-vat-invoices
       total: invoice.totals.totalCents,
       notes: invoice.notes,
-      company: {
-        legalName: companyProfile?.legalName || 'Your Company',
-        tradingName: companyProfile?.tradingName || companyProfile?.legalName || 'Your Company',
-        registrationNumber: companyProfile?.registrationNumber,
-        vatNumber: companyProfile?.vatNumber,
-        isVatRegistered: false, // No VAT registration for no-vat-invoices
-        email: companyProfile?.email,
-        phone: companyProfile?.phone,
-        address: companyProfile?.address,
-        logoUrl: companyProfile?.branding?.logoUrl,
-        banking: companyProfile?.banking,
-      },
+        company: {
+          legalName: companyProfile?.legalName || 'Your Company',
+          tradingName: companyProfile?.tradingName || companyProfile?.legalName || 'Your Company',
+          registrationNumber: companyProfile?.registrationNumber,
+          vatNumber: companyProfile?.vatNumber,
+          isVatRegistered: false, // No VAT registration for no-vat-invoices
+          email: companyProfile?.email,
+          phone: companyProfile?.phone,
+          address: companyProfile?.address,
+          logoUrl: companyProfile?.branding?.logoUrl,
+          banking: companyProfile?.banking,
+        },
+        showItemPrices,
+      };
     };
   }, [invoice, company]);
 
@@ -533,10 +537,6 @@ export default function NoVatInvoiceDetailPage({ params }: { params: Promise<{ i
               View Invoice
             </Button>
             <DocumentActions data={documentData} />
-            {/* Hidden document preview for print functionality - accessible but not visually displayed */}
-            <div id="document-preview" className="absolute -left-[9999px] top-0 w-[210mm]">
-              <DocumentPreview data={documentData} />
-            </div>
           </>
         )}
       </div>
@@ -833,6 +833,14 @@ export default function NoVatInvoiceDetailPage({ params }: { params: Promise<{ i
             <DialogDescription>
               Preview of the invoice as it will appear when printed or downloaded
             </DialogDescription>
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <Label htmlFor="show-prices-toggle" className="text-sm">Show item prices</Label>
+              <Switch
+                id="show-prices-toggle"
+                checked={showItemPrices}
+                onCheckedChange={setShowItemPrices}
+              />
+            </div>
           </DialogHeader>
           <div className="py-4">
             {documentData && (

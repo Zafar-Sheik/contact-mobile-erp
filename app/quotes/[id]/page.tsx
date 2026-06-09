@@ -452,10 +452,6 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
         {documentData && (
           <>
             <DocumentActions data={documentData} />
-            {/* Hidden document preview for print functionality - accessible but not visually displayed */}
-            <div id="document-preview" className="absolute -left-[9999px] top-0 w-[210mm]">
-              <DocumentPreview data={documentData} />
-            </div>
           </>
         )}
       </div>

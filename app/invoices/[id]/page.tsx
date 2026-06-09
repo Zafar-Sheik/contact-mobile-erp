@@ -57,9 +57,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import Link from "next/link";
 import { useApi } from "@/lib/hooks/use-api";
-import { DocumentActions, DocumentPreview } from "@/components/erp/document-generator";
+import { DocumentActions, DocumentPreview, DocumentGenerator } from "@/components/erp/document-generator";
 
 // Types
 interface Client {
@@ -238,6 +239,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
   const [showPaymentDialog, setShowPaymentDialog] = React.useState(false);
   const [showCancelDialog, setShowCancelDialog] = React.useState(false);
   const [showPreviewDialog, setShowPreviewDialog] = React.useState(false);
+  const [showItemPrices, setShowItemPrices] = React.useState(true);
 
   // Payment form state
   const [paymentForm, setPaymentForm] = React.useState({
@@ -405,26 +407,24 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
   // Prepare document data for print/export
   const documentData = React.useMemo(() => {
     if (!invoice) return null;
-    
-    const client = typeof invoice.clientId === 'object' ? invoice.clientId : null;
-    const clientData = client || { name: 'Unknown Client' };
-    
-    // Use company data if available, otherwise use defaults
+
+    const client = typeof invoice.clientId === "object" ? invoice.clientId : null;
+
     const companyProfile = company?.profile;
-    
+
     return {
       documentNumber: invoice.invoiceNumber,
-      documentType: 'invoice' as const,
+      documentType: "invoice" as const,
       date: invoice.issueDate,
       dueDate: invoice.dueDate,
       customer: {
-        name: invoice.clientSnapshot?.name || clientData.name || 'Unknown',
-        email: invoice.clientSnapshot?.email || (client as any)?.email,
-        phone: invoice.clientSnapshot?.phone || (client as any)?.phone,
+        name: invoice.clientSnapshot?.name || "Unknown",
+        email: invoice.clientSnapshot?.email,
+        phone: invoice.clientSnapshot?.phone,
         billingAddress: invoice.clientSnapshot?.address,
       },
-      lines: invoice.lines.map(line => ({
-        description: line.nameSnapshot || 'Item',
+      lines: invoice.lines.map((line) => ({
+        description: line.nameSnapshot || "Item",
         qty: line.qty,
         unitPrice: line.unitPriceCents,
         total: line.lineTotalCents,
@@ -435,8 +435,8 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
       total: invoice.totals.totalCents,
       notes: invoice.notes,
       company: {
-        legalName: companyProfile?.legalName || 'Your Company',
-        tradingName: companyProfile?.tradingName || companyProfile?.legalName || 'Your Company',
+        legalName: companyProfile?.legalName || "Your Company",
+        tradingName: companyProfile?.tradingName || companyProfile?.legalName || "Your Company",
         registrationNumber: companyProfile?.registrationNumber,
         vatNumber: companyProfile?.vatNumber,
         isVatRegistered: companyProfile?.isVatRegistered,
@@ -446,6 +446,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
         logoUrl: companyProfile?.branding?.logoUrl,
         banking: companyProfile?.banking,
       },
+      showItemPrices,
     };
   }, [invoice, company]);
 
@@ -528,17 +529,10 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
           </Button>
         )}
         {documentData && (
-          <>
-            <Button onClick={() => setShowPreviewDialog(true)} variant="outline" className="flex-1">
-              <Eye className="h-4 w-4 mr-2" />
-              View Invoice
-            </Button>
-            <DocumentActions data={documentData} />
-            {/* Hidden document preview for print functionality - accessible but not visually displayed */}
-            <div id="document-preview" className="absolute -left-[9999px] top-0 w-[210mm]">
-              <DocumentPreview data={documentData} />
-            </div>
-          </>
+          <Button onClick={() => setShowPreviewDialog(true)} variant="outline" className="flex-1">
+            <Eye className="h-4 w-4 mr-2" />
+            View Invoice
+          </Button>
         )}
       </div>
 
@@ -843,16 +837,17 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
           </DialogHeader>
           <div className="py-4">
             {documentData && (
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <DocumentPreview data={documentData} />
-              </div>
+              <DocumentGenerator
+                key={`dialog-doc-${invoice._id}`}
+                data={documentData}
+                showActions
+              />
             )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowPreviewDialog(false)}>
               Close
             </Button>
-            {documentData && <DocumentActions data={documentData} />}
           </DialogFooter>
         </DialogContent>
       </Dialog>
