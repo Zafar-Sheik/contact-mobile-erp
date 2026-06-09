@@ -453,8 +453,9 @@ export default function NoVatInvoiceDetailPage({ params }: { params: Promise<{ i
         logoUrl: companyProfile?.branding?.logoUrl,
         banking: companyProfile?.banking,
       },
-      showItemPrices: typeof showItemPrices !== 'undefined' ? showItemPrices : true,
+        showItemPrices: typeof showItemPrices !== 'undefined' ? showItemPrices : true,
     };
+  }, [invoice, company]);
 
   if (loading) {
     return (
