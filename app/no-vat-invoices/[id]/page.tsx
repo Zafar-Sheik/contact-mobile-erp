@@ -437,26 +437,24 @@ export default function NoVatInvoiceDetailPage({ params }: { params: Promise<{ i
         total: line.lineTotalCents,
       })),
       subtotal: invoice.totals.subTotalCents,
-      vatRate: 0, // No VAT for no-vat-invoices
-      vatAmount: 0, // No VAT for no-vat-invoices
+      vatRate: 0,
+      vatAmount: 0,
       total: invoice.totals.totalCents,
       notes: invoice.notes,
-        company: {
-          legalName: companyProfile?.legalName || 'Your Company',
-          tradingName: companyProfile?.tradingName || companyProfile?.legalName || 'Your Company',
-          registrationNumber: companyProfile?.registrationNumber,
-          vatNumber: companyProfile?.vatNumber,
-          isVatRegistered: false, // No VAT registration for no-vat-invoices
-          email: companyProfile?.email,
-          phone: companyProfile?.phone,
-          address: companyProfile?.address,
-          logoUrl: companyProfile?.branding?.logoUrl,
-          banking: companyProfile?.banking,
-        },
-        showItemPrices,
-      };
+      company: {
+        legalName: companyProfile?.legalName || 'Your Company',
+        tradingName: companyProfile?.tradingName || companyProfile?.legalName || 'Your Company',
+        registrationNumber: companyProfile?.registrationNumber,
+        vatNumber: companyProfile?.vatNumber,
+        isVatRegistered: false,
+        email: companyProfile?.email,
+        phone: companyProfile?.phone,
+        address: companyProfile?.address,
+        logoUrl: companyProfile?.branding?.logoUrl,
+        banking: companyProfile?.banking,
+      },
+      showItemPrices: typeof showItemPrices !== 'undefined' ? showItemPrices : true,
     };
-  }, [invoice, company]);
 
   if (loading) {
     return (
